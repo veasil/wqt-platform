@@ -360,7 +360,7 @@
   }
 
   // 统一的插画风格前缀（对齐品牌 IP「小伍」：发光护目镜+耳机、紫蓝科技装）
-  const ILLU_STYLE = "半厚涂科技插画风格，蓝紫色霓虹配色、柔和光效，主角是品牌 IP「小伍」——一个戴着发光护目镜(visor)和耳机、穿紫蓝色科技外套、活泼勇敢的中国男孩，画面温暖治愈、积极阳光、构图饱满，画面中不要出现任何文字。具体场景：";
+  const ILLU_STYLE = "半厚涂科技插画风格，蓝紫色霓虹配色、柔和光效。主角必须严格参照上传的官方品牌 IP「小伍」参考图：戴发光护目镜(visor)和耳机、穿紫蓝色科技外套、活泼勇敢的中国男孩；不要改成其他角色或画风。画面温暖治愈、积极阳光、构图饱满，画面中不要出现任何文字。具体场景：";
 
   // 单个故事场景的生图 prompt（具象到画面，表达一个具体故事时刻）
   function buildScenePrompt(scene, structured) {
@@ -892,32 +892,6 @@
     return faces.filter((f) => f.dataUri);
   }
 
-  // 故事配图：挑 3 张「经典卡」（有卡面图的）——优先含创新选项的卡，其余按均匀取样补足
-  async function pickClassicCardFaces(cards, max = 3) {
-    if (typeof window.getCardImage !== "function") return [];
-    const seen = new Set();
-    const withImg = [];
-    (cards || []).forEach((c) => {
-      if (!c.cardCode || seen.has(c.cardCode)) return;
-      if (window.getCardImage(c.cardCode)) { seen.add(c.cardCode); withImg.push(c); }
-    });
-    if (!withImg.length) return [];
-    const chosen = [];
-    withImg.forEach((c) => { if (c.isCreativeOption && chosen.length < max && !chosen.includes(c)) chosen.push(c); });
-    const step = withImg.length / max;
-    for (let i = 0; i < withImg.length && chosen.length < max; i += step) {
-      const c = withImg[Math.floor(i)];
-      if (!chosen.includes(c)) chosen.push(c);
-    }
-    const picked = chosen.slice(0, max);
-    const faces = await Promise.all(picked.map(async (c) => ({
-      code: c.cardCode,
-      caption: (c.eventText || "").slice(0, 14) || c.cardCode,
-      dataUri: await imgUrlToDataUri(window.getCardImage(c.cardCode))
-    })));
-    return faces.filter((f) => f.dataUri);
-  }
-
   // 底栏品牌 banner 素材（后端静态托管于 public/brand/，同源抓取转 dataURI，导出自包含）
   const BRAND_FILES = {
     bg: "brand/banner-bg.png",
@@ -971,22 +945,22 @@
     status("正在汇总伍力与风险雷达…", 45);
     const radars = computeRadars(reviewData, structured.riskRadar);
 
-    // 卡面条带、故事插画参考卡面与品牌素材先并行抓取（本地很快）
+    // 卡面条带与品牌素材先并行抓取（本地很快）
     const facesP = collectCardFaces(reviewData.cards);
-    const classicFacesP = pickClassicCardFaces(reviewData.cards);
     const brandP = collectBrandAssets();
 
-    // 故事插画：将本局代表性卡面作为 ToAPIs 参考图，令画面贴近实际闯关内容。
-    // 每个请求只带一张卡面，既保留多场景差异，也避免放大请求体。
+    // 故事插画：将官方小伍 IP 图作为 ToAPIs 参考图，确保角色形象和品牌画风一致。
+    // 每个请求只带一张 IP 图，按场景轮换三张官方姿态图。
     const scenes = pickScenes(structured);
-    const classicFaces = await classicFacesP;
+    const brand = await brandP;
+    const ipReferences = [brand.wuA, brand.wuB, brand.wuC].filter(Boolean);
     status(`正在用生图模型绘制闯关故事插画（${scenes.length} 张）…`, 55);
     const dataUris = await Promise.all(
       scenes.map((sc, index) => {
-        const reference = classicFaces.length ? classicFaces[index % classicFaces.length] : null;
+        const reference = ipReferences.length ? ipReferences[index % ipReferences.length] : "";
         return callImage(buildScenePrompt(sc, structured), {
           size: "768*768",
-          referenceImageDataUri: reference?.dataUri || ""
+          referenceImageDataUri: reference
         });
       })
     );
@@ -995,7 +969,7 @@
       .filter((s) => s.dataUri);
 
     status("正在准备卡面与品牌素材…", 85);
-    const [cardFaces, brand] = await Promise.all([facesP, brandP]);
+    const cardFaces = await facesP;
 
     status("正在排版生成海报…", 92);
     const reportHtml = buildReportHtml(structured, reviewData, radars, sceneImages, cardFaces, brand);
