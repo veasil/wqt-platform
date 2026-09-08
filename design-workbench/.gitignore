@@ -1,0 +1,43 @@
+# Dependencies and generated output
+/node_modules/
+/dist/
+/.cache/
+/.vercel/
+
+# Local tools and accidental command output
+/.tools/
+/--help/
+
+# Secrets: keep only the documented template
+/.env*
+!/.env.example
+
+# Runtime and deployment databases are rebuilt or supplied locally
+*.db
+*.db-*
+*.db-shm
+*.db-wal
+/deployment-data/
+
+# The repository root ignores every data/ directory; this source fixture is required
+!/src/data/
+!/src/data/**
+
+# Historical visual evidence; V4 evidence will be versioned here later
+/artifacts/*
+!/artifacts/v4/
+!/artifacts/v4/**
+/assets/v2-masters/
+/assets/v3-masters/
+
+# Superseded static prototypes and screenshots
+/prototype*.png
+/react-*.png
+/ui-walkthrough-preview.png
+/prototype.css
+/prototype.js
+/my.html
+/ui-walkthrough.html
+/cards-pdf-map.js
+/scripts/ui_v2_verify.py
+/scripts/ui_v3_verify.py

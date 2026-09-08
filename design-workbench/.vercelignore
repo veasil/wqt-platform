@@ -1,0 +1,17 @@
+.cache/
+.tools/
+.vercel/
+/.env
+/.env.local
+/.env.*.local
+artifacts/
+node_modules/
+dist/
+/data/
+*.md
+prototype.js
+prototype.css
+my.html
+ui-walkthrough.html
+scripts/*.py
+scripts/start-test-site.ps1
