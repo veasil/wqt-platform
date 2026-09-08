@@ -1,0 +1,223 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-08",
+  "generator": {
+    "mode": "built-in image_gen",
+    "workflow": "reference-guided UI generation with targeted correction passes",
+    "viewport": "1440x900"
+  },
+  "designIntent": "以当前已实现的 V3 前端为严格视觉基线，只完成 V4 流程所需的结构收敛、层级强化、间距与质感润色；不另起视觉方向，不重绘品牌 Logo 或小伍 IP。",
+  "sharedConstraints": [
+    "保留 Future Guardian Deck 深靛场域、蓝紫主行动、青色交互高光与现有顶部导航。",
+    "保留官方 Logo、小伍 IP 和当前中文信息架构，不生成替代品牌资产。",
+    "正文使用高不透明度深靛承载层；Liquid Glass 只用于外壳和浮层边缘。",
+    "禁止白色卡片、橙色 CTA、全屏霓虹、密集赛博 HUD、彩色按钮墙和水印。",
+    "生图是视觉基线，业务文案、权限规则和运行时状态以 V4 契约与源码为准。"
+  ],
+  "references": {
+    "login": "references/login-current-1440x900.png",
+    "setup": "references/setup-current-1440x900.png",
+    "gameEmpty": "references/game-empty-current-1440x900.png",
+    "cardFeedback": "references/card-feedback-current-1440x900.png",
+    "review": "references/review-current-1440x900.png",
+    "profile": "references/profile-current-1440x900.png"
+  },
+  "items": [
+    {
+      "id": "01-welcome",
+      "output": "01-welcome-1440x900.png",
+      "generation": "preserve-current",
+      "source": "artifacts/ui-v3/supervisor-responsive-typography-final/01-welcome-1440x900.png",
+      "rationale": "欢迎页使用现有官方未来城市封面，V4 不重绘或替换。"
+    },
+    {
+      "id": "02-login-captcha",
+      "output": "02-login-captcha-1440x900.png",
+      "generation": "image_gen-with-correction",
+      "reference": "login",
+      "prompt": [
+        "Use case: ui-mockup",
+        "Asset type: shippable high-fidelity desktop web app visual baseline, exact 1440x900 frame",
+        "Input image: edit target and strict visual/layout baseline; this is the current implemented frontend",
+        "Primary request: polish this existing 《伍力全开》守望者登录 screen into its V4 baseline without redesigning it. Preserve the split modal, left city/Xiao Wu illustration, right login form, existing navigation logic, proportions, and dark Future Guardian Deck identity. Improve spacing rhythm, alignment, hierarchy, field affordance, and finish. Make the security verification row clearly read as a real interactive Tencent Captcha 2.0 entry state, with a restrained cyan focus cue and a compact shield control, not a fake success state.",
+        "Composition: exact full desktop screenshot at 1440x900; preserve the current centered modal footprint and balanced left/right split",
+        "Visual invariants: preserve the current official logo area and existing Xiao Wu character appearance exactly; keep all major Chinese labels and the two login tabs in their current semantic positions; preserve deep indigo solid surfaces, violet primary action, cyan focus, localized soft bloom, generous empty outer field",
+        "Surface polish: precise 1px blue-violet edges, subtle top inner highlights, clean matte-to-liquid layering only on outer shells, opaque form fields, stronger label/input spacing, clearer checkbox and legal links",
+        "Color palette: #050824 background, #111B48 and #172557 panels, #F4F6FF text, #625BFF primary action, #2BD9FF interactive highlight, magenta only if absolutely necessary",
+        "Typography: clean readable Chinese UI typography; retain existing wording where legible; avoid fabricated microcopy",
+        "Correction pass: replace every legacy role term 守望师 with 守望者; the left headline is 回到你的守望者席位 and the form title is 守望者登录; preserve all other content and layout.",
+        "Constraints: this must look like a careful refinement of the provided frontend, not a new concept; no layout overhaul, no extra characters, no replacement logo, no generic cyberpunk HUD, no glass behind body text, no colorful button wall, no orange CTA, no watermark"
+      ]
+    },
+    {
+      "id": "03-activity-selection",
+      "output": "03-activity-selection-1440x900.png",
+      "generation": "image_gen",
+      "reference": "setup",
+      "prompt": [
+        "Use case: ui-mockup",
+        "Asset type: V4 high-fidelity activity selection screen, exact 1440x900",
+        "Input image: strict current-frontend visual baseline",
+        "Primary request: refine the existing 新游戏配置 modal into step 1 of 2, an activity selection screen. Preserve the same centered deep-indigo shell, header treatment, close control, spacing character, violet/cyan accents, and overall visual identity. Remove manual activity-code input and every configuration field from this step. Show only currently open, authorized activities as two polished selectable cards with name, location, open-now status, and a quiet chevron. One card is selected with a restrained violet highlight. Add a small 步骤 1 / 2 progress cue and one clear next CTA in the existing footer position.",
+        "Exact text anchors: 选择当前活动, 步骤 1 / 2, 当前开放, 未来守望者·城市站, 数智安全体验营, 下一步",
+        "Hierarchy: activity cards are the single focus; reduce explanatory prose; strong clean reading order",
+        "Constraints: careful refinement of the provided frontend, not a redesign; preserve centered-modal proportions and deep-indigo Future Guardian Deck; no code input, no mode/version/time fields, no extra illustration, no replacement logo, no cyberpunk HUD, no white cards, no orange, no watermark"
+      ]
+    },
+    {
+      "id": "04a-config-standard",
+      "output": "04a-config-standard-1440x900.png",
+      "generation": "image_gen",
+      "reference": "setup",
+      "prompt": [
+        "Use case: ui-mockup",
+        "Asset type: V4 high-fidelity standard-mode configuration screen, exact 1440x900",
+        "Input image: strict current-frontend visual baseline",
+        "Primary request: refine the existing 新游戏配置 modal into step 2 of 2 for 标准成长模式. Preserve the current centered shell and visual system, but simplify it to show the selected activity summary, locked mode summary 标准成长模式 · 5000 秒 · 共 15 张, and only three large numeric steppers for 启蒙期、成长期、青春期. Default values are 5 / 5 / 5. Make the total rule visible as 已分配 15 / 15 张. Provide 上一步 and 开始游戏.",
+        "Interaction polish: each stepper is a rounded equipment-like control with minus, value, plus; visible keyboard focus on one control; violet primary, cyan focus",
+        "Constraints: no activity code, version selector, mode selector, duration input, or card-group label; no layout overhaul, no white cards, no glass behind body text, no substitute logo, no watermark"
+      ]
+    },
+    {
+      "id": "04b-config-quick",
+      "output": "04b-config-quick-1440x900.png",
+      "generation": "image_gen",
+      "reference": "setup",
+      "prompt": [
+        "Use case: ui-mockup",
+        "Asset type: V4 high-fidelity quick-mode configuration screen, exact 1440x900",
+        "Input image: strict current-frontend visual baseline",
+        "Primary request: refine the existing 新游戏配置 modal into step 2 of 2 for 快速成长模式. Show selected activity summary, locked mode summary 快速成长模式 · 3600 秒 · 共 9 张, and only three numeric steppers for 启蒙期、成长期、青春期 with defaults 3 / 3 / 3. Show 已分配 9 / 9 张. Provide 上一步 and a prominent violet 开始游戏 CTA.",
+        "Constraints: refinement of the input screen, not a redesign; no manual activity code, no version/mode/time inputs, no extra illustration, no white surfaces, no dense HUD, no watermark"
+      ]
+    },
+    {
+      "id": "04c-config-custom",
+      "output": "04c-config-custom-1440x900.png",
+      "generation": "image_gen-with-correction",
+      "reference": "setup",
+      "prompt": [
+        "Use case: ui-mockup",
+        "Asset type: V4 high-fidelity custom-mode configuration screen, exact 1440x900",
+        "Input image: strict current-frontend visual baseline",
+        "Primary request: refine the existing 新游戏配置 modal into step 2 of 2 for 自定义模式. Show selected activity summary, locked mode summary 自定义模式 · 活动预设 4200 秒, and only three numeric steppers for 启蒙期、成长期、青春期 with values 4 / 2 / 3. Add per-stage availability captions 最多 12 张, 最多 10 张, 最多 8 张. Show 已分配 9 张 and helper 至少 1 张，不得超过可用数量. Provide 上一步 and 开始游戏.",
+        "Correction pass: remove the stale mode text 标准成长模式 from the selected-activity subtitle so it reads only 上海 · 城市站; preserve the separate locked custom-mode row.",
+        "Constraints: refinement, not redesign; no editable time, version selector, card-group label, activity code, mode selector, white cards, dense HUD, extra illustration, or watermark"
+      ]
+    },
+    {
+      "id": "05-game-empty",
+      "output": "05-game-empty-1440x900.png",
+      "generation": "image_gen",
+      "reference": "gameEmpty",
+      "prompt": [
+        "Use case: ui-mockup",
+        "Asset type: V4 high-fidelity core game screen, exact 1440x900",
+        "Input image: strict visual baseline for brand, header, typography, density, and core workflow",
+        "Primary request: polish the current game screen into the V4 default empty state. Preserve the official top-left brand area, top navigation, timer/profile, status strip, and central decision area. Replace the permanent left session column plus right skills/supervisor columns with one compact vertical accordion rail on the left containing exactly three collapsed items: 本局游戏状态, 伍力技能, 现场督导. The rail is narrow and does not shrink the core decision area. Make 输入卡牌编号 the strongest visual action: bright high-contrast input with cyan focus edge, larger height, and a single logo-icon 选择卡牌 button. Center empty-state copy: 下一张情景牌正在等你开启. Remove browse-card explanatory CTA.",
+        "Hierarchy: number input first, scenario canvas second, accordion rail third",
+        "Constraints: no permanent right sidebar; no extra card description near 选择卡牌; no extra empty-state button; no replacement logo, no cyberpunk HUD, no white cards, no orange, no watermark"
+      ]
+    },
+    {
+      "id": "06a-game-session-panel",
+      "output": "06a-game-session-panel-1440x900.png",
+      "generation": "image_gen-with-correction",
+      "reference": "gameEmpty",
+      "prompt": [
+        "Use case: ui-mockup",
+        "Asset type: V4 high-fidelity game screen with session accordion open, exact 1440x900",
+        "Primary request: preserve the current header, dominant card-number input, central decision canvas, and deep-indigo identity. Show a left accordion rail ordered 01 本局游戏状态, 02 伍力技能, 03 现场督导. Open only 本局游戏状态 as an overlay over the left edge without changing the decision area width. Include activity, current card, mode, and three phase progress rows.",
+        "Correction pass: remove the obsolete browse-card button beneath the empty-state sentence; keep every other composition unchanged.",
+        "Constraints: one accordion open at a time; no right sidebar; overlay must not compress core content; no watermark"
+      ]
+    },
+    {
+      "id": "06b-game-skills-panel",
+      "output": "06b-game-skills-panel-1440x900.png",
+      "generation": "image_gen-with-correction",
+      "reference": "gameEmpty",
+      "prompt": [
+        "Use case: ui-mockup",
+        "Asset type: V4 high-fidelity game screen with skills accordion open, exact 1440x900",
+        "Primary request: preserve the current game shell. Show the left accordion ordered 01 本局游戏状态, 02 伍力技能, 03 现场督导, with only 伍力技能 open. List five compact R/A/S/P/E skill rows, small colored chips, availability labels, and restrained actions. The overlay must not reduce the central canvas width.",
+        "Correction pass: enforce the exact accordion order and remove the obsolete browse-card button beneath the empty-state sentence.",
+        "Constraints: five colors only in tiny chips; no permanent right sidebar, giant colored buttons, white cards, replacement brand assets, cyberpunk clutter, or watermark"
+      ]
+    },
+    {
+      "id": "06c-game-supervisor-panel",
+      "output": "06c-game-supervisor-panel-1440x900.png",
+      "generation": "image_gen-with-correction",
+      "reference": "gameEmpty",
+      "prompt": [
+        "Use case: ui-mockup",
+        "Asset type: V4 high-fidelity game screen with supervisor accordion open, exact 1440x900",
+        "Primary request: preserve the game shell. Show the left accordion ordered 01 本局游戏状态, 02 伍力技能, 03 现场督导, with only 现场督导 open. The panel shows 未开启, a compact waveform placeholder, 开启前会请求麦克风权限, 开始现场录音, and 查看监督模式. The overlay must not shrink the decision canvas.",
+        "Correction pass: remove the obsolete browse-card button beneath the empty-state sentence.",
+        "Constraints: no fake recording success, no huge magenta, no right sidebar, no white cards, no cyberpunk HUD, no replacement logo, no watermark"
+      ]
+    },
+    {
+      "id": "07-card-number-success",
+      "output": "07-card-number-success-1440x900.png",
+      "generation": "image_gen",
+      "reference": "cardFeedback",
+      "prompt": [
+        "Use case: ui-mockup",
+        "Asset type: V4 high-fidelity card-number input success feedback state, exact 1440x900",
+        "Primary request: adapt the current feedback screen to the V4 layout. Preserve card B01 content, choices, selected A feedback, and core Chinese content positions. Replace permanent side columns with the collapsed three-item accordion rail ordered 01 本局游戏状态, 02 伍力技能, 03 现场督导. Make the top input highest priority and show B01 with a green check and 已读取 · 屏幕之外的约定. Keep one logo-icon button labeled 选择卡牌.",
+        "Constraints: no sidebars, browse button, extra card explanation, white cards, or watermark"
+      ]
+    },
+    {
+      "id": "08-quick-card-picker",
+      "output": "08-quick-card-picker-1440x900.png",
+      "generation": "image_gen",
+      "reference": "gameEmpty",
+      "prompt": [
+        "Use case: ui-mockup",
+        "Asset type: V4 high-fidelity quick card picker overlay, exact 1440x900",
+        "Primary request: show the V4 game screen with a centered picker opened from the logo-icon 选择卡牌 button. The wide opaque indigo modal is titled 快速选择情景牌, with phase tabs 启蒙期/成长期/青春期, a compact safety-type filter, and a clean grid of available cards showing code and short title. B01 has cyan keyboard focus. Include close control and helper 选择后立即读取卡牌.",
+        "Constraints: not a marketplace or admin table; no permanent right sidebar, dense microtext, white cards, extra illustrations, regenerated logo, or watermark"
+      ]
+    },
+    {
+      "id": "09-review-ready",
+      "output": "09-review-ready-1440x900.png",
+      "generation": "image_gen",
+      "reference": "review",
+      "prompt": [
+        "Use case: ui-mockup",
+        "Asset type: V4 high-fidelity end-of-game review modal, exact 1440x900",
+        "Primary request: carefully polish the existing review-ready screen without changing its workflow. Preserve the centered modal, title 先暂停，才能看清选择, score, reflection, two learning panels, and bottom actions. Improve spacing, hierarchy, contrast, and relationship between score, insight, commitments, and report action. Make 查看 / 导出复盘报告 the primary violet action and 返回系统 a quieter secondary action.",
+        "Constraints: refinement only; no extra charts, white cards, large cyan CTA, substitute brand graphics, or watermark"
+      ]
+    },
+    {
+      "id": "10-profile-overview",
+      "output": "10-profile-overview-1440x900.png",
+      "generation": "image_gen",
+      "reference": "profile",
+      "prompt": [
+        "Use case: ui-mockup",
+        "Asset type: V4 high-fidelity personal center overview, exact 1440x900",
+        "Primary request: polish the current 我的 profile screen without changing its header, profile hero, left navigation pattern, account information grid, or style. Add a new left-navigation item 活动码 between 我的学习 and 文件与反馈, using the existing icon tile and active-state system. Keep 账户资料 active. Improve whitespace rhythm, alignment, readable density, and subtle surface depth.",
+        "Constraints: small extension and polish only; no new dashboard cards, white surfaces, sidebar redesign, extra character art, replacement logo, or watermark"
+      ]
+    },
+    {
+      "id": "11-activity-codes",
+      "output": "11-activity-codes-1440x900.png",
+      "generation": "image_gen",
+      "reference": "profile",
+      "prompt": [
+        "Use case: ui-mockup",
+        "Asset type: V4 high-fidelity personal-center activity-code page, exact 1440x900",
+        "Primary request: preserve the current 我的 shell and open 活动码. In the main panel, title 我的活动码. Provide a compact application form with 活动名称 and 活动地点 plus a violet 提交申请 button. Below show three rows: approved 已通过 with visible code WQT-2609 and 复制; pending 待审批 with no code and helper 审批通过后显示活动码; rejected 已拒绝 with no code and a short reason. Use semantic colors only in small state chips.",
+        "Security invariant: only the approved row may reveal a code; pending and rejected rows must contain no code-shaped placeholder or masked code",
+        "Constraints: same current layout and visual language, not an admin page; no packed table, white cards, large semantic-color blocks, extra illustrations, or watermark"
+      ]
+    }
+  ]
+}
