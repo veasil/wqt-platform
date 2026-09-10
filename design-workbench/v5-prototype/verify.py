@@ -22,11 +22,19 @@ with sync_playwright() as p:
     click('verify')
     page.locator('#agree').check()
     click('login')
-    page.locator('#activity-code').fill('WQTAY')
-    click('check-code')
+    assert page.get_by_text('守望者工作台', exact=True).is_visible()
+    click('new-game')
+    assert page.locator('#activity-code').count() == 0
+    assert page.locator('[data-action^="activity:"]').count() == 2
     click('activity:0')
     shot('02-activity')
     click('next')
+    assert page.locator('#mode').count() == 0
+    assert page.locator('[data-action="picker"]').count() == 0
+    click('count:0:-1')
+    assert page.locator('[data-action="start"]').is_disabled()
+    click('count:1:1')
+    assert page.locator('[data-action="start"]').is_enabled()
     shot('03-config')
     click('start')
     shot('04-game')
@@ -35,12 +43,28 @@ with sync_playwright() as p:
     page.locator('[data-action^="pick:"]').first.click()
     click('choice:2')
     shot('06-feedback')
+    click('finish')
+    assert page.evaluate('state.history.length') == 1
     click('pause')
     click('pause')
     click('stop')
     click('end')
+    assert page.evaluate('state.ended')
+    assert page.locator('[data-action="pause"]').count() == 0
+    assert page.get_by_text('既有复盘链路', exact=True).is_visible()
+    first_id = page.evaluate('state.sessionId')
+    click('home')
+    click('new-game')
+    click('activity:1')
+    click('next')
+    assert page.evaluate('state.counts') == [5,5,5]
+    click('start')
+    assert page.evaluate('state.history.length') == 0
+    assert page.evaluate('state.remaining') > 4900
+    assert page.evaluate('state.sessionId') != first_id
+    assert '守望师' not in page.locator('body').inner_text()
     result={'flow':'login → activity → config → game → picker → choice → pause/resume → end', 'pageErrors':errors, 'externalRequests':remote, 'viewport':'1440x900', 'visualAcceptance':'pending; see README known issues'}
-    (out/'results.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+    (out/'results.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8',newline='\n')
     browser.close()
     assert not errors, errors
     assert not remote, remote
