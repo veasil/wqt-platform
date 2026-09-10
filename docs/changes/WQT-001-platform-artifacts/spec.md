@@ -1,9 +1,9 @@
 # WQT-001 · 仓库更名与制品流程
 
-状态：实施中
+状态：实现与技术检查完成，待最终验收
 需求来源：2026-09-10 项目讨论；需求提出方回复“你开始工作”，授权执行保留历史、更名 wqt-platform、落地版本化制品流程。
 基线：4ab1c76309a116e90c9898436ea5477f0c07e7ac（feat/cards-2026-workbench）。
-Issue：[GitHub #2](https://github.com/veasil/wqt-platform/issues/2)。PR：待创建。
+Issue：[GitHub #2](https://github.com/veasil/wqt-platform/issues/2)。PR：[草稿 #3](https://github.com/veasil/wqt-platform/pull/3)。
 
 ## 目标与范围
 
