@@ -1,0 +1,22 @@
+name: Artifact checks
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  artifacts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test artifact tooling
+        run: npm run test:artifacts
+      - name: Check artifact structure and links
+        run: npm run check:artifacts
