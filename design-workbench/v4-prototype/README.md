@@ -8,7 +8,7 @@
 - `brand-spec.md`：颜色、字体、间距、组件状态与响应式约束。
 - `assets/`：从现有前端复用的品牌、角色和原卡背景资产。
 - `verify_prototype.py`：Playwright 端到端回归脚本。
-- `screenshots/`：登录、游戏空状态、卡片反馈和开发说明四个验收画面。
+- `screenshots/`：四个桌面验收画面，以及登录、游戏空状态两个 390px 移动端画面。
 
 ## 运行原型
 
@@ -49,7 +49,7 @@
 
 ## 自动验收
 
-脚本覆盖登录门禁、五位活动码、三种模式、首个活动索引、左栏互斥、卡牌筛选与选中、反馈与属性变化、音频提示、暂停/恢复、开发说明和终止确认。
+脚本覆盖登录门禁、五位活动码、三种模式、首个活动索引、左栏互斥、卡牌筛选与选中、反馈与属性变化、音频提示、暂停/恢复、开发说明和终止确认；同时覆盖 390px 窄屏完整流程、键盘焦点顺序、弹层和横向溢出检查。
 
 ```powershell
 python .\verify_prototype.py
@@ -58,7 +58,7 @@ python .\verify_prototype.py
 通过标志：
 
 ```text
-PASS: login -> activity -> config -> game -> picker -> feedback -> pause/stop
+PASS: desktop flow + 390px responsive flow + keyboard focus + overlays
 ```
 
 ## 生成与恢复说明

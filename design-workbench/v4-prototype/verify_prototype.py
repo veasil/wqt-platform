@@ -12,6 +12,18 @@ def assert_text(page, text: str) -> None:
     page.get_by_text(text, exact=False).first.wait_for(state="visible")
 
 
+def assert_no_horizontal_overflow(page, label: str) -> None:
+    dimensions = page.evaluate(
+        """() => ({
+            viewport: document.documentElement.clientWidth,
+            content: document.documentElement.scrollWidth,
+        })"""
+    )
+    assert dimensions["content"] <= dimensions["viewport"], (
+        f"{label} horizontally overflows: {dimensions!r}"
+    )
+
+
 def main() -> None:
     SHOTS.mkdir(exist_ok=True)
     console_errors: list[str] = []
@@ -19,14 +31,20 @@ def main() -> None:
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
+
+        def observe(browser_page) -> None:
+            browser_page.on(
+                "console",
+                lambda message: console_errors.append(message.text)
+                if message.type == "error"
+                else None,
+            )
+            browser_page.on(
+                "pageerror", lambda error: page_errors.append(str(error))
+            )
+
         page = browser.new_page(viewport={"width": 1440, "height": 900})
-        page.on(
-            "console",
-            lambda message: console_errors.append(message.text)
-            if message.type == "error"
-            else None,
-        )
-        page.on("pageerror", lambda error: page_errors.append(str(error)))
+        observe(page)
 
         page.goto(HTML.as_uri(), wait_until="networkidle")
         assert_text(page, "待接阿里云验证码服务")
@@ -109,6 +127,48 @@ def main() -> None:
         assert_text(page, "已记录你的选择")
         assert page.locator('[data-field="cardCode"]').is_disabled()
 
+        page.close()
+
+        mobile = browser.new_page(viewport={"width": 390, "height": 844})
+        observe(mobile)
+        mobile.goto(HTML.as_uri(), wait_until="networkidle")
+        assert_no_horizontal_overflow(mobile, "mobile login")
+        mobile.locator('[data-field="phone"]').focus()
+        mobile.keyboard.press("Tab")
+        assert mobile.evaluate(
+            "document.activeElement?.dataset?.field"
+        ) == "secret"
+        mobile.screenshot(path=SHOTS / "05-mobile-login.png", full_page=True)
+
+        mobile.locator('[data-field="phone"]').fill("13800138000")
+        mobile.locator('[data-field="secret"]').fill("demo123")
+        mobile.locator('[data-action="verify"]').click()
+        mobile.locator('[data-action="agree"]').check()
+        mobile.locator('[data-action="login"]').click()
+        mobile.locator('[data-od-id="activity-screen"]').wait_for()
+        assert_no_horizontal_overflow(mobile, "mobile activity")
+        mobile.locator('[data-field="activityCode"]').fill("WQTAY")
+        mobile.locator('[data-action="validate-code"]').click()
+        mobile.get_by_text("验证成功，已加载授权活动").wait_for()
+        mobile.locator('[data-action="pick-activity"]').first.click()
+        mobile.locator('[data-action="activity-next"]').click()
+        mobile.locator('[data-od-id="config-screen"]').wait_for()
+        assert_no_horizontal_overflow(mobile, "mobile config")
+        mobile.locator('[data-action="start-game"]').click()
+        mobile.locator('[data-od-id="game-screen"]').wait_for()
+        assert_no_horizontal_overflow(mobile, "mobile game")
+        mobile.screenshot(path=SHOTS / "06-mobile-game.png", full_page=True)
+
+        mobile.locator('[data-action="open-picker"]').click()
+        mobile.locator('[data-od-id="quick-card-picker"]').wait_for()
+        assert_no_horizontal_overflow(mobile, "mobile card picker")
+        mobile.locator('[data-action="close-picker"]').first.click()
+        mobile.locator('[data-od-id="panel-status"]').click()
+        assert_no_horizontal_overflow(mobile, "mobile status panel")
+        mobile.locator('[data-action="dev"]').click()
+        mobile.locator('[data-od-id="developer-notes"]').wait_for()
+        assert_no_horizontal_overflow(mobile, "mobile developer notes")
+
         browser.close()
 
     if console_errors or page_errors:
@@ -116,7 +176,9 @@ def main() -> None:
             f"Browser errors: console={console_errors!r}, page={page_errors!r}"
         )
 
-    print("PASS: login -> activity -> config -> game -> picker -> feedback -> pause/stop")
+    print(
+        "PASS: desktop flow + 390px responsive flow + keyboard focus + overlays"
+    )
     print(f"Screenshots: {SHOTS}")
 
 
