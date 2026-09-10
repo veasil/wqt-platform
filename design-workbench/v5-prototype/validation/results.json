@@ -1,0 +1,7 @@
+{
+  "flow": "login → activity → config → game → picker → choice → pause/resume → end",
+  "pageErrors": [],
+  "externalRequests": [],
+  "viewport": "1440x900",
+  "visualAcceptance": "pending; see README known issues"
+}
