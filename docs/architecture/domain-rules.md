@@ -10,7 +10,7 @@
 1. **organization 就是 tenant。** 沿用 `organizations.id`，不另建重复的 `tenants` 实体。旧 `enterprise_id` 是组织关系字段，名称兼容不代表另一个领域。
 2. **组织场次永久归创建时的组织。** 老师从 A 转到 B，A 的历史场次仍归 A，不能因人员归属变化自动出现在 B 的经营数据中。这里约定的是归属不变，不是无限期保留数据的政策。
 
-**实现状态：** WQT-002 已加入 organization_id / ownership_kind、数据库不可变约束、按场次归属的查询和私有文件访问。正在隔离 PostgreSQL 验证；尚未迁移生产。
+**实现状态：** WQT-002 已加入 organization_id / ownership_kind、数据库不可变约束、按场次归属的查询和私有文件访问。隔离 PostgreSQL 验证通过；尚未迁移生产。
 
 2026-09-12 需求方在 [G-MIGRATION](../changes/WQT-002-subagents-refactor/migration-gate.md) 确认：历史无法证明的场次标记 legacy_unknown、仅平台核实且不计组织统计；新独立场次为 personal；组织创建者离开原组织后失去该场次访问，原组织管理员保留访问、新组织无权访问；跨组织及个人场次关联组织活动被拒绝，公共活动不改变场次归属。
 

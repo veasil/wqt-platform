@@ -11,8 +11,8 @@
 | R1-C | Astra 主控 | P1；与 A 的依赖先约定 | src/db.js、cards-db.js、config.js、services/sms.js；package/CI | 环境加载顺序、资源关闭与真实 PG 测试入口 | done：R1 PG CI 通过 |
 | R1-D | Astra 主控，必要时派 Luna 修复 | A/B/C | 集成与 evidence | 真实 PG 回归、失败恢复、差异复核 | done：61502a1 PG 5/5；1608353 PG 6/6 |
 | R2/R3 | Astra 拆任务、Luna 按模块提取 | R1-D | 每次只分配一个明确模块 | 平台、游戏模块与契约验证 | done：主要路由提取、顺序验证通过 |
-| T1 | Astra 设计、Luna 执行已明确部分 | 隔离环境及相关模块可用 | 独立迁移与业务变更批次 | G-MIGRATION；AC-05 | running：M1–M4 已确认，隔离实现与验证 |
-| F | Astra 汇总、需求方验收 | 全部适用标准 | 最终 evidence | G-FINAL | blocked：实现未完成 |
+| T1 | Astra 设计、Luna 执行已明确部分 | 隔离环境及相关模块可用 | 独立迁移与业务变更批次 | G-MIGRATION；AC-05 | done：M1–M4 / G-AUTH 已确认，PG 11/11 |
+| F | Astra 汇总、需求方验收 | 全部适用标准 | 最终 evidence | G-FINAL | 待需求方最终验收：技术证据已齐备 |
 
 以上写入范围是任务候选；主控完成 P1 后以实际派工契约确定具体文件名。R1-A/B 可以并行写不同文件；R1-C 与它们共享的接口必须先对齐。所有包脚本、工作流与共享文档由主控编辑。
 
@@ -42,14 +42,14 @@
 
 ## 回退
 
-当前只读盘点和文档可通过 Git 回退，不涉及数据库。后续结构拆分逐批提交，代码回退需同时恢复脚本与入口；迁移回退必须在 T1 方案中单独描述，不能用 revert 代替数据恢复。
+文档与结构拆分逐批提交，可通过 Git 审查和回退，代码回退需同时恢复脚本与入口；迁移回退必须在 T1 方案中单独描述，不能用 revert 代替数据恢复。
 
 ## 接续现场
 
-- 当前目标：R1/R2/R3 已通过真实 PG CI；T1 与 G-AUTH 已确认并实现，正在集成回归。
+- 当前目标：R1/R2/R3 已通过真实 PG CI；T1 与 G-AUTH 已确认并实现，PG 11/11 通过。
 - 当前分支：codex/runtime-isolation；实现基线 a7ccfe6（规划提交），依赖 codex/wqt-platform-artifacts。接续先核对 git branch --show-current、git rev-parse HEAD、git status --short。
 - 子代理：runtime_extract 和 runtime_tests 均使用 gpt-5.6-luna，非重叠写入；主控负责复核和集成。不能仅凭代理报告认定通过。
 - 工作区原有未跟踪图片、会议文档与 output 不属于本变更，禁止一并提交。
 - 已确认边界：organization=tenant；组织场次固定归创建组织；用户仅最终与重要 gate 验收。
-- 下一动作：独占临时 PG 数据库的 CI 验证，随后按模块拆分；历史归属迁移单独形成 G-MIGRATION 材料。
-- 尚未完成：T1/G-AUTH 集成结果、生产数据盘点与迁移、完整业务验收。未合并、未部署。
+- 下一动作：需求方按 evidence 完成最终验收；正式发布按 release-gate 另行确认。
+- 尚未完成：生产数据盘点与迁移、需求方最终验收。未合并、未部署。
