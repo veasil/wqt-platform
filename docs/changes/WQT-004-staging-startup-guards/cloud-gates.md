@@ -12,9 +12,9 @@
 
 ## G-RESOURCE（待报价结算核对）
 
-需求方预算：每月新增几十元人民币。Zeabur dedicatedServerPlans(provider:ALIYUN,region:cn-hongkong)实查：同现有生产规格swas.s.c2m4s50b1.linux，2CPU/4GB/50GB，available=true，price=9；API字段无币种说明，结算币种/税费/续费需核对，不能将裸数值当9元。
+需求方预算：每月新增几十元人民币。Zeabur dedicatedServerPlans(provider:ALIYUN,region:cn-hongkong)实查：同现有生产规格swas.s.c2m4s50b1.linux，2CPU/4GB/50GB，available=true，price=9；随后核对 Zeabur 官方 CLI 的 server/rent 源码，价格格式为 $%d/mo，因此该方案为 $9/月，不是9元。税费/人民币支付汇率以结算为准。来源：https://github.com/zeabur/cli/blob/main/internal/cmd/server/rent/rent.go 。
 
-建议独立同规格机器部署wqt-staging与PG18；按官方说明服务器按月计费且默认自动续费。成本还包含可选订阅、OSS、短信、AI；不为本轮新增Team/Pro订阅。资源创建前给出准确总额/周期并确认，未采购。
+建议独立同规格机器部署wqt-staging与PG18；按官方说明服务器按月计费且默认自动续费。成本还包含可选订阅、OSS、短信、AI；不为本轮新增Team/Pro订阅。采购建议：只购首月$9，购入后关闭自动续费，待实际账单复核后再续；额外短信/AI消费不在这次采购授权中。资源创建前确认该具体方案，未采购。
 
 若最终报价不在预算内，重新比较按需运行或同机隔离；不得为了省费默认把预发布数据库指向生产。后续还需独立OSS/Bmob/AI配置及团队测试账号，Zeabur部署key不能替代这些服务凭据。
 

@@ -33,6 +33,12 @@ test(
         await client.query('DELETE FROM system_settings');
         await preflightStartup();
         assert.equal((await client.query("SELECT to_regclass('public.game_sessions') AS name")).rows[0].name,null);
+        const runtime = await startRuntime({port:0,host:'127.0.0.1'});
+        try {
+          const response = await fetch('http://127.0.0.1:' + runtime.server.address().port + '/api/settings');
+          assert.equal(response.status,200);
+          await response.arrayBuffer();
+        } finally { await runtime.stop(); }
         console.log('PREFLIGHT_READ_ONLY_PASSED');
       } finally { await client.end(); }
     `,
