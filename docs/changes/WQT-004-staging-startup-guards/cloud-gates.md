@@ -6,15 +6,15 @@
 
 建议操作：仅将该服务该环境的Git trigger设为null，停止后续push自动触发。Zeabur GraphQL updateGitTrigger的schema说明明确null意味着不再由git push触发。保留现有服务、运行镜像、数据库和域名，不触发重启或主动部署；变更后只读复查gitTrigger=null、服务RUNNING和原镜像tag。后续生产发布改为明确候选版本与人工gate。
 
-回退：恢复provider GITHUB、repoID 1117361465、branchName feat/cards-2026-workbench的trigger配置；恢复前再次确认不会把未验收提交自动上线。当前仅准备方案，未调用mutation。
+回退：恢复provider GITHUB、repoID 1117361465、branchName feat/cards-2026-workbench的trigger配置；恢复前再次确认不会把未验收提交自动上线。该回退方案尚未执行；正式关闭的执行证据见下文。
 
-该操作改变生产交付触发方式，按AGENTS/CONTRIBUTING属于重要gate，需要需求方明确确认。
+该操作改变生产交付触发方式，按AGENTS/CONTRIBUTING属于重要gate，已由需求方明确确认。
 
-## G-RESOURCE（已批准，采购受支付配置阻塞）
+## G-RESOURCE（首月采购完成，自动续费已关闭）
 
 需求方预算：每月新增几十元人民币。Zeabur dedicatedServerPlans(provider:ALIYUN,region:cn-hongkong)实查：同现有生产规格swas.s.c2m4s50b1.linux，2CPU/4GB/50GB，available=true，price=9；随后核对 Zeabur 官方 CLI 的 server/rent 源码，价格格式为 $%d/mo，因此该方案为 $9/月，不是9元。税费/人民币支付汇率以结算为准。来源：https://github.com/zeabur/cli/blob/main/internal/cmd/server/rent/rent.go 。
 
-建议独立同规格机器部署wqt-staging与PG18；按官方说明服务器按月计费且默认自动续费。成本还包含可选订阅、OSS、短信、AI；不为本轮新增Team/Pro订阅。采购建议：只购首月$9，购入后关闭自动续费，待实际账单复核后再续；额外短信/AI消费不在这次采购授权中。资源创建前确认该具体方案，未采购。
+建议独立同规格机器部署wqt-staging与PG18；按官方说明服务器按月计费且默认自动续费。成本还包含可选订阅、OSS、短信、AI；不为本轮新增Team/Pro订阅。采购建议：只购首月$9，购入后关闭自动续费，待实际账单复核后再续；额外短信/AI消费不在这次采购授权中。该具体方案已批准并购入，见下方执行记录。
 
 若最终报价不在预算内，重新比较按需运行或同机隔离；不得为了省费默认把预发布数据库指向生产。后续还需独立OSS/Bmob/AI配置及团队测试账号，Zeabur部署key不能替代这些服务凭据。
 
@@ -32,3 +32,24 @@
 - 关闭自动续费请求失败：Server is not managed by Zeabur；isAutoRenewDisabled=null，不能报告已关闭续费。
 - 下一步：需求方在 Zeabur 账单设置指定默认支付方式后，先核对失败订单及现有资源，避免重复购买，再按已批准预算继续。开通后必须关闭并读回 isAutoRenewDisabled=true，才算采购 gate 完成。当前不自动重试扣费。
 - 应用项目、PG18、合成数据部署和真实外部服务联调尚未开始；不回退到生产同库，也不复制生产凭据。
+
+## 余额支付恢复后的执行记录
+
+需求方回复“可以用余额支付了”后，先复查服务器列表：旧资源6aa531a7aa8a37958d9588a0仍FAILED、无到期时间，没有已开通的预发布机器；重新核对同规格报价仍为9且available=true。
+
+随后仅提交一次采购请求，沿用operationID=wqt-staging-20260912-first-month。平台返回新资源6aa54068aa8a37958d958950，而非旧资源，说明不能假定该字段提供请求去重保证。此次状态由CREATING、PROVISIONING、INITIALIZING到READY，isManaged=true、status.isOnline=true。
+
+- 服务器名称：wqt-staging-hk，ID 6aa54068aa8a37958d958950。
+- updateServerAutoRenew(autoRenew:false)返回true，随后读回isAutoRenewDisabled=true。
+- 到期：2026-10-12T16:00:00Z，即新加坡时间2026-10-13 00:00。后续续费由需求方决定，不自动续费。
+- 项目：wqt-staging，ID 6aa541025dbe69df73c8b41f，region=server-6aa54068aa8a37958d958950，确认使用新服务器。
+- 平台默认环境标签仍为production，ID 6aa541025070596c8e668c0c；它位于独立wqt-staging项目，不是旧生产项目。应用必须配置SERVER_ENV=staging，不从平台默认标签推断应用模式。
+- 数据库服务：wqt-staging-pg，ID 6aa5412af9b152e74791f0a3，镜像postgres:18，状态RUNNING，portForwardingMode=DISABLED。独立安全随机密码仅写入该服务私有变量，未写入Git或输出；卷挂载/var/lib/postgresql，符合PG18官方镜像布局。
+- 此次没有查询生产数据库、复制生产环境变量或操作旧生产服务器续费。未取得账单明细，不能报告余额实际扣款拆分；服务器开通和续费关闭已有平台证据。
+- 应用、合成数据导入及真实短信/OSS联调仍未完成，待独立服务配置。数据库RUNNING不等于完整业务验收。
+
+参考：[Zeabur服务器购买](https://zeabur.com/docs/en-US/server/purchase)、[PostgreSQL官方镜像](https://hub.docker.com/_/postgres)。
+
+- 已创建空应用服务wqt-api（6aa541a95dbe69df73c8b49d），尚未绑定代码或启动，可供后续配置独立凭据。项目入口：https://zeabur.com/projects/6aa541025dbe69df73c8b41f 。
+
+- SQL只读验证限制：对新PG服务执行psql查询current_database/server_version/data_directory/空表计数，两次API客户端分别在25秒、55秒超时，未获得exitCode/output。没有执行写入SQL，不推断查询成功；后续需通过平台终端或修复执行通道继续验证，不为检查临时开放数据库公网。
