@@ -19,6 +19,7 @@ npm ci
 在本地 `.env` 中配置以下项目，替换占位值；已有文件只补充所需项：
 
 ```dotenv
+NODE_ENV=development
 DATABASE_URL=postgres://<user>:<password>@localhost:5432/<development_database>
 JWT_SECRET=<独立的随机签名密钥>
 SETTINGS_ENCRYPTION_KEY=<32字节密钥的64位十六进制字符串>
@@ -33,7 +34,7 @@ PORT=8080
 node --env-file=.env server.js
 ```
 
-部署环境已注入变量时，可直接 `npm start`。玩家端访问 [localhost:8080](http://localhost:8080/)。自助注册默认关闭；测试账号通过已有管理员或邀请码流程建立，完整登录还依赖短信配置。
+部署环境按[启动保护配置](../changes/WQT-004-staging-startup-guards/configuration.md)补齐必填项后可 `npm start`；缺少 NODE_ENV / SERVER_ENV / 密钥或数据库配置会在初始化前拒绝启动。玩家端访问 [localhost:8080](http://localhost:8080/)。自助注册默认关闭；测试账号通过已有管理员或邀请码流程建立，完整登录还依赖短信配置。
 
 ### 3. 启动管理端
 
