@@ -25,8 +25,8 @@ test(
       try {
         await preflightStartup();
         assert.equal((await client.query("SELECT count(*)::int AS n FROM pg_tables WHERE schemaname='public'")).rows[0].n,0);
-        await client.query('CREATE TABLE system_settings(key TEXT PRIMARY KEY,value TEXT)');
-        await client.query("INSERT INTO system_settings VALUES ('BMOB_REST_KEY','copied-secret-must-not-escape')");
+        await client.query('CREATE TABLE system_settings(key TEXT PRIMARY KEY,value TEXT,description TEXT)');
+        await client.query("INSERT INTO system_settings(key,value) VALUES ('BMOB_REST_KEY','copied-secret-must-not-escape')");
         await assert.rejects(startRuntime({port:0,host:'127.0.0.1'}), e => /database setting BMOB_REST_KEY/.test(e.message) && !e.message.includes('copied-secret'));
         assert.equal((await client.query("SELECT to_regclass('public.users') AS name")).rows[0].name,null);
         assert.equal((await client.query("SELECT value FROM system_settings WHERE key='BMOB_REST_KEY'")).rows[0].value,'copied-secret-must-not-escape');
