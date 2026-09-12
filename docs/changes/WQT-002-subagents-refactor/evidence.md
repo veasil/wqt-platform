@@ -52,3 +52,9 @@ G-MIGRATION：用户确认 migration-gate.md 的 M1–M4，授权隔离环境实
 1608353 的 [Runtime isolation](https://github.com/veasil/wqt-platform/actions/runs/34685149253) 成功，6 项测试无跳过；包含完整登录和实时撤权。后续 T1 新增固定归属、单连接事务、活动关联、私有文件metadata及鉴权下载；G-AUTH 获需求方确认，移除手机号免验证和默认开发密钥入口，公开配置改白名单。未知存量不会按当前成员回填。
 
 新增独占 PG 场景：租户转移、文件/AI撤权、上传失败补偿、旧 schema 迁移与只读盘点、管理登录。外部 OSS 为内存替身；浏览器调用已适配 sessionId 和认证下载。所有集成场景必须显式执行并输出完成标记，不能只 import 测试模块认定通过。生产公开文件地址、实际短信/OSS配置、存量数量与正式发布尚未验证。
+
+## 集成修复与浏览器证据
+
+92ded86 的 PG CI：10 passed / 1 failed；失败为组织场次列表的空组织分页，旧 COUNT 正则未匹配多行 SELECT，空结果触发 total.total 访问错误。主控改为显式 COUNT 子查询，加入 A/B 总数及空组织断言；后续补测成员统计、活动脏关联和账号删除历史保护。迁移场景增加并发转组织的真实行锁等待验证。
+
+浏览器验证（Python Playwright，HTTP API 使用明确替身，未连接数据库）：玩家/管理登录无开发捷径，私有报告带 Bearer 下载成功，跨站链接在 fetch 前拒绝；页面无 JavaScript 异常。测试首次等待失败是停留在未展开的活动记录页，修正测试导航后通过。admin-web 与 enterprise-panel 两个前端构建均通过，现有大 chunk 警告保留。技能包缺少 with_server.py，已用版本化测试脚本自行管理纯静态 app 进程并确保退出清理。

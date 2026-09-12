@@ -574,10 +574,7 @@ export function registerOrganizationRoutes(app) {
         }
 
         // 总数
-        const countSql = sql.replace(
-          /SELECT gs\.id.*FROM/,
-          "SELECT COUNT(*) as total FROM",
-        );
+        const countSql = `SELECT COUNT(*) AS total FROM (${sql}) visible_sessions`;
         const total = await dbGet(countSql, params);
 
         sql += " ORDER BY gs.started_at DESC LIMIT ? OFFSET ?";

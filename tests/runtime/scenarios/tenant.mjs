@@ -193,10 +193,35 @@ export async function runTenantScenario() {
       "GET",
       adminBToken,
     );
-    assert.equal(listA.status, 200);
-    assert.equal(listB.status, 200);
+    assert.equal(listA.status, 200, JSON.stringify(listA.body));
+    assert.equal(listB.status, 200, JSON.stringify(listB.body));
+    assert.equal(listA.body.total, 1);
+    assert.equal(listB.body.total, 0);
     assert.equal(listA.body.sessions.length, 1);
     assert.equal(listB.body.sessions.length, 0);
+    assert.equal((await json(base, "/api/enterprise/members", "GET", adminAToken)).status, 200);
+    const memberStats = await json(base, `/api/enterprise/members/${creator.id}/stats`, "GET", adminBToken);
+    assert.equal(memberStats.status, 200, JSON.stringify(memberStats.body));
+    assert.equal(memberStats.body.stats.totalGames, 0);
+    const ownActivities = await json(base, "/api/me/activities", "GET", creatorToken);
+    assert.equal(ownActivities.status, 200, JSON.stringify(ownActivities.body));
+    assert.equal(ownActivities.body.activities.length, 0);
+    const ownSessions = await json(base, "/api/me/sessions", "GET", creatorToken);
+    assert.equal(ownSessions.status, 200, JSON.stringify(ownSessions.body));
+    assert.equal(ownSessions.body.total, 0);
+
+    // Existing dirty associations must not leak A's session through B's activity queries.
+    await dbRun("INSERT INTO activity_sessions(activity_id, session_id, table_no) VALUES(?,?,99)", [activityB.id, sessionId]);
+    const activityDetailB = await json(base, `/api/enterprise/activities/${activityB.id}/sessions`, "GET", adminBToken);
+    assert.equal(activityDetailB.status, 200, JSON.stringify(activityDetailB.body));
+    assert.equal(activityDetailB.body.sessions.length, 0);
+    const activitiesB = await json(base, "/api/enterprise/activities", "GET", adminBToken);
+    assert.equal(activitiesB.status, 200, JSON.stringify(activitiesB.body));
+    assert.equal(activitiesB.body.activities.find(activity => activity.id === activityB.id).table_count, 0);
+    const platformBoss = await user(`platform-boss-${suffix}`, null, "boss");
+    const deleteCreator = await json(base, `/api/admin/users/${creator.id}`, "DELETE", await token(platformBoss));
+    assert.equal(deleteCreator.status, 409);
+    assert.ok(await dbGet("SELECT id FROM game_sessions WHERE id=?", [sessionId]));
 
     const personal = await user(`personal-${suffix}`, null);
     const personalToken = await token(personal);
