@@ -3,17 +3,18 @@
 每次开发先定位需求与验收标准，使用唯一 WQT 编号组织制品。版本基线已有编号时，在 spec 中引用原 ID，不替换原验收体系。
 
 ```sh
-npm run change:new -- WQT-004 short-topic
+npm run change:new -- WQT-005 short-topic
 npm run check:artifacts
 npm run test:artifacts
 ```
 
-生成器创建 `docs/changes/WQT-004-short-topic/` 下的 `spec.md`、`plan.md`、`evidence.md`，不会覆盖既有目录或复用编号。草案和未执行检查不等于确认或通过。
+生成器创建 `docs/changes/WQT-005-short-topic/` 下的 `spec.md`、`plan.md`、`evidence.md`，不会覆盖既有目录或复用编号。草案和未执行检查不等于确认或通过。
 
 | 变更 | 内容 |
 |---|---|
 | [WQT-001](WQT-001-platform-artifacts/spec.md) | 仓库更名、团队文档、制品流程与 CI |
 | [WQT-002](WQT-002-subagents-refactor/spec.md) | 模块化架构、固定组织归属、管理登录与隔离验证 |
 | [WQT-003](WQT-003-pre-release-rehearsal/spec.md) | CI 合成数据备份恢复演练（技术完成，待验收） |
+| [WQT-004](WQT-004-staging-startup-guards/spec.md) | 启动保护、完整schema合成数据与PG18验证 |
 
 小改动仍可使用[单文件模板](../development/change-template.md)，以相同 `WQT-编号-主题` 目录内的 `change.md` 保存目标、验收、计划、证据。检查器支持三文件及单文件两种形式；完成状态由证据与验收人决定，结构检查不代替审批。

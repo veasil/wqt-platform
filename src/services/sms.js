@@ -5,6 +5,7 @@ import { config } from "../config.js";
 // 未配置 Bmob 时为 null，走开发环境的内存模拟验证码（mockCode）。
 export let bmobSMS = null;
 export function initSms() {
+  if (!mockAllowed() && (!config.BMOB_APP_ID || !config.BMOB_REST_KEY)) throw new Error("SMS configuration required outside development/test");
   startQuotaCleanup();
   bmobSMS = config.BMOB_APP_ID && config.BMOB_REST_KEY
     ? new BmobSMS(config.BMOB_APP_ID, config.BMOB_REST_KEY)
@@ -108,8 +109,9 @@ const TEST_LOGIN_CODE = (process.env.TEST_LOGIN_CODE || "").trim();
 const TEST_LOGIN_PHONES = new Set(
   (process.env.TEST_LOGIN_PHONES || "").split(",").map(s => s.trim()).filter(Boolean)
 );
+function mockAllowed() { return ["test", "development"].includes(process.env.NODE_ENV); }
 function isTestLogin(phone) {
-  return TEST_LOGIN_CODE && TEST_LOGIN_PHONES.has(normalizePhone(phone));
+  return mockAllowed() && TEST_LOGIN_CODE && TEST_LOGIN_PHONES.has(normalizePhone(phone));
 }
 
 export function generateSmsCode() {
@@ -122,7 +124,7 @@ export function generateSmsCode() {
  */
 export async function sendCode(phone, ip = null) {
   if (isTestLogin(phone)) {
-    console.log(`🧪 测试号码 [${phone}] 跳过真实短信，固定验证码: ${TEST_LOGIN_CODE}`);
+
     return { ok: true, mockCode: TEST_LOGIN_CODE, expiresInSeconds: 600 };
   }
 
@@ -131,11 +133,12 @@ export async function sendCode(phone, ip = null) {
   if (!quota.ok) return quota;
 
   if (!bmobSMS) {
+    if (!mockAllowed()) return { ok: false, status: 503, error: "短信服务未配置" };
     const now = Date.now();
     const mockCode = generateSmsCode();
     smsStore.set(phone, { code: mockCode, expiresAt: now + SMS_CODE_TTL_MS, lastSent: now });
     recordSend(phone, ip);
-    console.log(`📱 模拟短信验证码 [${phone}]: ${mockCode}`);
+
     return { ok: true, mockCode, expiresInSeconds: Math.floor(SMS_CODE_TTL_MS / 1000) };
   }
   try {
@@ -160,6 +163,7 @@ export async function verifyCode(phone, code, { consume = true } = {}) {
       : { ok: false, error: "验证码错误" };
   }
   if (!bmobSMS) {
+    if (!mockAllowed()) return { ok: false, status: 503, error: "短信服务未配置" };
     const stored = smsStore.get(phone);
     if (!stored) return { ok: false, error: "验证码不存在或已过期" };
     if (Date.now() > stored.expiresAt) {

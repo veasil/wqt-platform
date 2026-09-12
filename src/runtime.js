@@ -1,4 +1,5 @@
 import path from "path";
+import { preflightStartup, validateEffectiveConfiguration } from "./startup-guards.js";
 import fs from "fs";
 import OSS from "ali-oss";
 import { initDb, dbRun, dbGet, dbAll } from "./db.js";
@@ -152,7 +153,7 @@ async function initializeRuntime() {
       );
   }
 
-  await loadConfig();
+  await loadConfig({ validate: rows => validateEffectiveConfiguration(process.env, rows) });
   initSms();
 }
 
@@ -249,6 +250,7 @@ async function startRuntimeInternal({ port, host } = {}) {
   let sessionTimer = null;
   let stopPromise = null;
   try {
+    await preflightStartup();
     await initializeRuntime();
     const ossClient = createOssClient(config);
     const app = createApp({ runtimeConfig: config, ossClient });
