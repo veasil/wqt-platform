@@ -81,7 +81,7 @@ npm --prefix admin-web run dev
 
 ## 验证限制
 
-制品工具可独立运行 `npm run test:artifacts` 和 `npm run check:artifacts`，不安装业务依赖、不启动数据库；这两项也是 PR 的 Artifact checks。新变更使用 `npm run change:new -- WQT-003 short-topic` 创建草案。
+制品工具可独立运行 `npm run test:artifacts` 和 `npm run check:artifacts`，不安装业务依赖、不启动数据库；这两项也是 PR 的 Artifact checks。新变更使用 `npm run change:new -- WQT-004 short-topic` 创建草案。
 
 `npm run build` 构建两个 Vue 应用，不验证后端权限或数据正确性。
 
@@ -96,3 +96,11 @@ npm --prefix admin-web run dev
 `src/runtime.js` 调用主库初始化与增量迁移，不等于生产迁移已经获得批准。发布记录需包含提交、迁移、备份、验证结果和回退版本。SQLite 导入脚本 `scripts/migrate_sqlite_to_pg.mjs` 是历史数据迁移工具，不是日常启动步骤。
 
 [旧部署指南](../DEPLOY.md)描述 Screen 双环境，[旧后台迁移手册](../MIGRATION_PLAYBOOK.md)描述 Streamlit 迁移；二者仅作历史参考，不能直接用于当前生产操作。
+
+## CI 合成数据恢复演练
+
+WQT-003 的 tests/runtime/recovery.test.mjs 使用 pg_dump / pg_restore 和真实场次归属迁移函数，分别验证迁移前、迁移后的备份恢复。显式配置 WQT_TEST_PG_ADMIN_URL 后，测试会创建三个随机独占数据库；本机还需安装与 PG16 服务匹配的客户端并加入 PATH。缺 PG 配置时跳过，已配置但缺工具时失败。
+
+夹具覆盖组织、用户、场次和文件 metadata 的最小 schema，并非完整生产副本；恢复测试不证明全库容量、卡牌独立库、外部对象或生产恢复时间。不要把此测试当作生产备份脚本。
+
+Browser contracts CI 用锁文件构建两个前端，再运行固定 Playwright 版本的 Chromium 专项。所有 HTTP API 使用替身且外网请求被拒绝，不发送短信、不调用 AI、不连接数据库。
