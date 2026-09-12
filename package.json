@@ -12,7 +12,8 @@
     "change:new": "node scripts/artifacts/new-change.mjs",
     "check:artifacts": "node scripts/artifacts/check.mjs",
     "test:artifacts": "node --test tests/artifacts.test.mjs",
-    "test:runtime": "node --test tests/runtime/*.test.mjs"
+    "test:runtime": "node --test tests/runtime/*.test.mjs",
+    "lint": "eslint src/app.js src/runtime.js src/platform src/game src/integrations"
   },
   "allowScripts": {
     "sqlite3@5.1.7": true
@@ -30,5 +31,8 @@
     "node-fetch": "^3.3.2",
     "pg": "^8.21.0",
     "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "eslint": "9.39.1"
   }
 }

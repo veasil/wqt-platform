@@ -32,6 +32,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: npm run lint
       - name: Runtime tests with a disposable PostgreSQL service
         run: npm run test:runtime
         env:

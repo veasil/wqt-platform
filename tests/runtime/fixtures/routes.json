@@ -1,0 +1,1240 @@
+[
+  {
+    "name": "query",
+    "regexp": "/^\\/?(?=\\/|$)/i"
+  },
+  {
+    "name": "expressInit",
+    "regexp": "/^\\/?(?=\\/|$)/i"
+  },
+  {
+    "name": "helmetMiddleware",
+    "regexp": "/^\\/?(?=\\/|$)/i"
+  },
+  {
+    "name": "logger",
+    "regexp": "/^\\/?(?=\\/|$)/i"
+  },
+  {
+    "name": "jsonParser",
+    "regexp": "/^\\/api\\/upload\\/report\\/?(?=\\/|$)/i"
+  },
+  {
+    "name": "jsonParser",
+    "regexp": "/^\\/?(?=\\/|$)/i"
+  },
+  {
+    "name": "corsMiddleware",
+    "regexp": "/^\\/?(?=\\/|$)/i"
+  },
+  {
+    "name": "serveStatic",
+    "regexp": "/^\\/?(?=\\/|$)/i"
+  },
+  {
+    "name": "serveStatic",
+    "regexp": "/^\\/enterprise\\/?(?=\\/|$)/i"
+  },
+  {
+    "path": "/enterprise/*",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "<anonymous>"
+    ]
+  },
+  {
+    "name": "serveStatic",
+    "regexp": "/^\\/admin\\/?(?=\\/|$)/i"
+  },
+  {
+    "path": "/admin/*",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/db/test",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/settings",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/me",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/me/activities",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/me/activities/created",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/me/feedback",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/me/level-application",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/me/level-application",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/me/password",
+    "methods": [
+      "put"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/me/profile",
+    "methods": [
+      "put"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/me/sessions",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/me/files",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/organizations",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/organizations",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/organizations/:id",
+    "methods": [
+      "put"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/organizations/:id",
+    "methods": [
+      "delete"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/organizations/:id/members",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/invite-codes",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/invite-codes",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/enterprise/info",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "requireEnterprise",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/enterprise/members",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "requireEnterprise",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/enterprise/members",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "requireEnterprise",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/enterprise/members/:id",
+    "methods": [
+      "put"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "requireEnterprise",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/enterprise/members/:id",
+    "methods": [
+      "delete"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "requireEnterprise",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/enterprise/members/:id/stats",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "requireEnterprise",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/enterprise/dashboard",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "requireEnterprise",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/enterprise/sessions",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "requireEnterprise",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/enterprise/activities",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "requireEnterprise",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/enterprise/activities",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "requireEnterprise",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/enterprise/activities/:id",
+    "methods": [
+      "put"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "requireEnterprise",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/enterprise/activities/:id/sessions",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "requireEnterprise",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/enterprise/invite-codes",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "requireEnterprise",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/enterprise/invite-codes",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "requireEnterprise",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/game/start",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/game/finish",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/game/event",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/game/last-session",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/game/session/:id",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/cards",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/cards/study",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/card-groups",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/card-groups",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/card-groups/:id",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/card-groups",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/card-groups/:id",
+    "methods": [
+      "put"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/card-groups/:id",
+    "methods": [
+      "delete"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/cards",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/generate-card",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/cards",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/cards/:id",
+    "methods": [
+      "put"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/cards/bulk-release",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/cards/bulk-publish",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/cards/bulk-upsert",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/cards/:id",
+    "methods": [
+      "delete"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/llm/story",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/llm/image",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "multerMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/upload/audio",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "multerMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/upload/report",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/oss/files",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/oss/files",
+    "methods": [
+      "delete"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/activities",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/activities",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/activities/:id",
+    "methods": [
+      "put"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/activities/:id/sessions",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/game/join-activity",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/activities/by-code/:code",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/activities",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/activities/apply",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/level-applications",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/level-applications/:id",
+    "methods": [
+      "put"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/users/:id/level",
+    "methods": [
+      "put"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/feedback",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/feedback/:id/read",
+    "methods": [
+      "put"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/cards/:id/versions",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/cards/:id/versions/:verId",
+    "methods": [
+      "delete"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/cards/:id/notes",
+    "methods": [
+      "get"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/cards/:id/notes",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/cards/:id/notes/:noteId",
+    "methods": [
+      "put"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/cards/:id/notes/:noteId",
+    "methods": [
+      "delete"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/cards/:id/branch",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/card-versions/:id",
+    "methods": [
+      "put"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/card-versions/:id/promote",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "path": "/api/admin/cards/:id/release",
+    "methods": [
+      "post"
+    ],
+    "handlers": [
+      "authMiddleware",
+      "<anonymous>"
+    ]
+  },
+  {
+    "name": "router",
+    "regexp": "/^\\/?(?=\\/|$)/i",
+    "stack": [
+      {
+        "path": "/api/auth/register",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/auth/login",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/auth/dev-login",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/auth/admin-login",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/auth/sms/send",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/auth/sms/verify",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/auth/reset-password",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/auth/logout",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/auth/register-with-invite",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/auth/complete-profile",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "authMiddleware",
+          "<anonymous>"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "router",
+    "regexp": "/^\\/?(?=\\/|$)/i",
+    "stack": [
+      {
+        "path": "/api/admin/organizations/:id/validity",
+        "methods": [
+          "put"
+        ],
+        "handlers": [
+          "authMiddleware",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/admin/users/:id/validity",
+        "methods": [
+          "put"
+        ],
+        "handlers": [
+          "authMiddleware",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/admin/users/:id/sessions",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "authMiddleware",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/admin/users/:id/sessions",
+        "methods": [
+          "delete"
+        ],
+        "handlers": [
+          "authMiddleware",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "router",
+    "regexp": "/^\\/?(?=\\/|$)/i",
+    "stack": [
+      {
+        "path": "/api/admin/stats/overview",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "authMiddleware",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/admin/users",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "authMiddleware",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/admin/users",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "authMiddleware",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/admin/users/:id",
+        "methods": [
+          "put"
+        ],
+        "handlers": [
+          "authMiddleware",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/admin/users/:id",
+        "methods": [
+          "delete"
+        ],
+        "handlers": [
+          "authMiddleware",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/admin/organizations/:id/members",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "authMiddleware",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/admin/organizations/:id/members/batch",
+        "methods": [
+          "post"
+        ],
+        "handlers": [
+          "authMiddleware",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/admin/stats/sessions",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "authMiddleware",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/admin/stats/cards",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "authMiddleware",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/admin/sessions/:id/events",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "authMiddleware",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/admin/settings",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "authMiddleware",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/admin/settings",
+        "methods": [
+          "put"
+        ],
+        "handlers": [
+          "authMiddleware",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/admin/operators",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "authMiddleware",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/admin/audit/sessions",
+        "methods": [
+          "get"
+        ],
+        "handlers": [
+          "authMiddleware",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/admin/sessions/:id/status",
+        "methods": [
+          "put"
+        ],
+        "handlers": [
+          "authMiddleware",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      },
+      {
+        "path": "/api/admin/sessions/:id",
+        "methods": [
+          "delete"
+        ],
+        "handlers": [
+          "authMiddleware",
+          "<anonymous>",
+          "<anonymous>"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "<anonymous>",
+    "regexp": "/^\\/?(?=\\/|$)/i"
+  }
+]

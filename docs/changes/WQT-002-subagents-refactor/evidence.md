@@ -38,3 +38,11 @@
 Luna 提取与测试完成后，主控修正了测试夹具在数据库初始化之前写入、关闭后继续查询的问题，并将重复 stop 合并为同一 Promise；启动失败保留原错误且尝试释放所有资源。
 
 本地 node --test tests/runtime/runtime.test.mjs：4 passed、1 skipped（未配置显式测试 PG）。跳过不视为 PG 验收通过。新增 CI 使用一次性 PostgreSQL 16，测试只创建/删除自身登记的随机数据库，子进程不继承外部凭据。真实 CI 结果待补。
+
+## R1 CI 与 R2/R3 提取
+
+R1 提交 61502a1 的 [Runtime isolation](https://github.com/veasil/wqt-platform/actions/runs/34684709139) 成功：5 passed / 0 skipped。PR #4 为草案，依赖 PR #3。
+
+R2/R3 主控集成平台、场次、活动、卡牌与媒体路由；保留已有认证/权限服务入口。98 条 app 注册语句 AST 对照：96 条一致，2 条仅对象键引号被格式化移除、语义相同。路由与中间件完整顺序快照通过。主控修复子代理卡牌函数提前闭合和遗漏 fsPromises 引入，新增 ESLint no-undef 持续检查。新增真实登录/验证码消费、实时角色/组织/到期/会话撤销用例，下一次 CI 验证。
+
+G-MIGRATION：用户确认 migration-gate.md 的 M1–M4，授权隔离环境实现与验证；未授权生产迁移/上线。
