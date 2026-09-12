@@ -33,7 +33,7 @@ Luna 的任务单至少包含：关联 spec/plan、任务目标、允许修改�
 | 验证证据 | 验收 ID、环境、命令、版本、结果、失败与限制 | 变更记录或现有版本证据目录 |
 | 验收与发布记录 | 版本、验收人、结论、未关闭问题；发布时增加迁移与回退版本 | 复用版本 UAT / RELEASE 制品 |
 
-默认使用 `npm run change:new -- WQT-002 short-topic` 创建 `docs/changes/WQT-002-short-topic/` 的 spec、plan、evidence。小变更使用[单文件模板](docs/development/change-template.md)，无需为每个步骤创建独立文档。编号必须唯一；详见[制品入口](docs/changes/README.md)。vNext 已规定的制品路径和需求 ID 继续沿用，不另外建立冲突标准。模板中的“待确认”不是批准。
+默认使用 `npm run change:new -- WQT-003 short-topic` 创建 `docs/changes/WQT-003-short-topic/` 的 spec、plan、evidence。小变更使用[单文件模板](docs/development/change-template.md)，无需为每个步骤创建独立文档。编号必须唯一；详见[制品入口](docs/changes/README.md)。vNext 已规定的制品路径和需求 ID 继续沿用，不另外建立冲突标准。模板中的“待确认”不是批准。
 
 二进制、大体积或敏感证据可保存在受控外部位置，仓库记录访问位置、版本或摘要及对应提交，不提交密钥和原始个人数据。
 
