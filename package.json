@@ -11,7 +11,8 @@
     "test:bench": "node test/bench/run.mjs",
     "change:new": "node scripts/artifacts/new-change.mjs",
     "check:artifacts": "node scripts/artifacts/check.mjs",
-    "test:artifacts": "node --test tests/artifacts.test.mjs"
+    "test:artifacts": "node --test tests/artifacts.test.mjs",
+    "test:runtime": "node --test tests/runtime/*.test.mjs"
   },
   "allowScripts": {
     "sqlite3@5.1.7": true

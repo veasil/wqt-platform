@@ -5,6 +5,7 @@ import { config } from "../config.js";
 // 未配置 Bmob 时为 null，走开发环境的内存模拟验证码（mockCode）。
 export let bmobSMS = null;
 export function initSms() {
+  startQuotaCleanup();
   bmobSMS = config.BMOB_APP_ID && config.BMOB_REST_KEY
     ? new BmobSMS(config.BMOB_APP_ID, config.BMOB_REST_KEY)
     : null;
@@ -31,7 +32,10 @@ const phoneQuota = new Map();
 const ipQuota = new Map();
 
 // 周期清理过期配额，防内存被「换号轰炸」撑爆
-setInterval(() => {
+let quotaCleanupTimer;
+function startQuotaCleanup() {
+  if (quotaCleanupTimer) return;
+  quotaCleanupTimer = setInterval(() => {
   const now = Date.now();
   for (const [k, v] of phoneQuota) {
     if (now - v.windowStart >= DAY_MS && now - v.lastSent >= SMS_RESEND_INTERVAL_MS) phoneQuota.delete(k);
@@ -39,7 +43,15 @@ setInterval(() => {
   for (const [k, v] of ipQuota) {
     if (now - v.windowStart >= HOUR_MS) ipQuota.delete(k);
   }
-}, 10 * 60 * 1000).unref?.();
+  }, 10 * 60 * 1000);
+  quotaCleanupTimer.unref?.();
+}
+
+export function stopSms() {
+  clearInterval(quotaCleanupTimer);
+  quotaCleanupTimer = undefined;
+  bmobSMS = null;
+}
 
 // 发送前置限流检查（mock 与 Bmob 真实分支共用）。通过返回 {ok:true}。
 export function checkSendQuota(phone, ip) {

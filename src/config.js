@@ -1,8 +1,5 @@
-import dotenv from "dotenv";
 import crypto from "crypto";
 import { getAllSettings } from "./db.js";
-
-dotenv.config();
 
 // 运行期配置：先用 process.env 填充，loadConfig() 再用数据库 system_settings 覆盖。
 // 这是一个常量对象引用，loadConfig() 原地写入，所有 `import { config }` 的模块共享同一份引用，
@@ -55,6 +52,7 @@ export function encryptVal(value) {
 // 必须在 initDb() 之后调用。
 export async function loadConfig() {
   const dbSettings = await getAllSettings();
+  for (const key of Object.keys(config)) delete config[key];
   Object.assign(config, process.env);
 
   if (dbSettings && dbSettings.length > 0) {

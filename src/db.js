@@ -1,20 +1,18 @@
 import bcrypt from "bcryptjs";
 import { makePgApi, createPool } from "./sql-pg.js";
 
-// 主库连接：优先 DATABASE_URL（Zeabur 注入），兼容旧 PG_* 拼装
-const CONN =
-  process.env.DATABASE_URL ||
-  process.env.PG_MAIN_URL ||
-  "postgres://postgres:postgres@localhost:5432/wqt";
-
 let pool;
 let api;
 
 // 毫秒时间戳默认值（替代 sqlite 的 strftime('%s','now')*1000）
 const NOW_MS = "(extract(epoch from now())*1000)::bigint";
 
-export async function initDb() {
-  pool = createPool(CONN);
+export async function initDb({ connectionString } = {}) {
+  if (pool) throw new Error("Main database is already initialized; close it before restarting.");
+  // Resolve after the entry point has loaded its environment, not during import.
+  const conn = connectionString || process.env.DATABASE_URL || process.env.PG_MAIN_URL ||
+    "postgres://postgres:postgres@localhost:5432/wqt";
+  pool = createPool(conn);
   api = makePgApi(pool);
 
   await dbRun(`
@@ -224,6 +222,13 @@ export async function initDb() {
   }
 
   console.log('✅ Main database initialized (PostgreSQL)');
+}
+
+export async function closeDb() {
+  const ownedPool = pool;
+  pool = undefined;
+  api = undefined;
+  if (ownedPool) await ownedPool.end();
 }
 
 export async function getSystemSetting(key, defaultValue = null) {

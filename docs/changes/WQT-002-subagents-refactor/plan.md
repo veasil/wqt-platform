@@ -6,10 +6,10 @@
 |---|---|---|---|---|---|
 | P0 | Luna 盘点 + 主控复核 | 无 | 只读代码；主控维护本制品 | 启动副作用、环境读取、测试风险清单 | done：只读证据已复核 |
 | P1 | Astra 主控 | P0 | 本 spec/plan/evidence | R1 内部接口和测试隔离契约 | done：下文记录，按证据可演进 |
-| R1-A | Luna 代码提取 | P1 | server.js、src/app.js、src/runtime.js | 机械提取，保留路由顺序和路径；AC-02/04 | ready：尚未派工实现 |
-| R1-B | Luna 测试编写 | P1 | tests/runtime/*、tests/helpers/* | 无副作用导入、隔离拒绝路径、启动/关闭测试；AC-02/03 | ready：可先写测试，真实 PG 运行依赖环境 |
-| R1-C | Astra 主控 | P1；与 A 的依赖先约定 | src/db.js、cards-db.js、config.js、services/sms.js；package/CI | 环境加载顺序、资源关闭与真实 PG 测试入口 | ready：尚未实现 |
-| R1-D | Astra 主控，必要时派 Luna 修复 | A/B/C | 集成与 evidence | 真实 PG 回归、失败恢复、差异复核 | blocked：依赖实现 |
+| R1-A | Luna 代码提取 | P1 | server.js、src/app.js、src/runtime.js | 机械提取，保留路由顺序和路径；AC-02/04 | reviewed：Luna 返回，主控修正关闭流程 |
+| R1-B | Luna 测试编写 | P1 | tests/runtime/*、tests/helpers/* | 无副作用导入、隔离拒绝路径、启动/关闭测试；AC-02/03 | reviewed：Luna 返回，主控修正夹具顺序 |
+| R1-C | Astra 主控 | P1；与 A 的依赖先约定 | src/db.js、cards-db.js、config.js、services/sms.js；package/CI | 环境加载顺序、资源关闭与真实 PG 测试入口 | reviewed：等待真实 PG CI |
+| R1-D | Astra 主控，必要时派 Luna 修复 | A/B/C | 集成与 evidence | 真实 PG 回归、失败恢复、差异复核 | running：本地 4 passed / PG skipped，提交 CI |
 | R2/R3 | Astra 拆任务、Luna 按模块提取 | R1-D | 每次只分配一个明确模块 | 平台、游戏模块与契约验证 | blocked：R1 |
 | T1 | Astra 设计、Luna 执行已明确部分 | 隔离环境及相关模块可用 | 独立迁移与业务变更批次 | G-MIGRATION；AC-05 | blocked：盘点和迁移方案 |
 | F | Astra 汇总、需求方验收 | 全部适用标准 | 最终 evidence | G-FINAL | blocked：实现未完成 |
@@ -46,11 +46,10 @@
 
 ## 接续现场
 
-- 当前目标：P0/P1 规划输出已完成；下一轮实施 R1-A/B/C，不能把计划条目当成已实现。
-- 当前代码基线：ede91b3；后续实现宜从此规划提交建立独立分支，保持与 WQT-001 的依赖关系。
-- 当前规划分支：codex/subagents-refactor-plan；起始 HEAD 为 ede91b325260525156310caca79c2be8cb7097df。接续时执行 git branch --show-current、git rev-parse HEAD、git status --short 核验实际状态；本制品随规划提交保存，不把起始 SHA 当作最新 HEAD。
-- 工作区差异：本轮仅 AGENTS、CONTRIBUTING、变更索引、子代理工作流及 WQT-002 制品；其他原有未跟踪文档、图片和输出不属于本任务。尚无业务代码差异。
-- 当前子代理：r1_inventory，gpt-5.6-luna，只读盘点和规划复核均已返回；下一轮应依据本契约重新派工，不依赖该代理仍在运行。
+- 当前目标：R1 入口与隔离测试已实现，正在获取真实 PG 集成证据；R2/R3 继续按依赖推进。
+- 当前分支：codex/runtime-isolation；实现基线 a7ccfe6（规划提交），依赖 codex/wqt-platform-artifacts。接续先核对 git branch --show-current、git rev-parse HEAD、git status --short。
+- 子代理：runtime_extract 和 runtime_tests 均使用 gpt-5.6-luna，非重叠写入；主控负责复核和集成。不能仅凭代理报告认定通过。
+- 工作区原有未跟踪图片、会议文档与 output 不属于本变更，禁止一并提交。
 - 已确认边界：organization=tenant；组织场次固定归创建组织；用户仅最终与重要 gate 验收。
-- 下一动作：从本规划提交建立 R1 实现分支，向 Luna A/B 分配上述非重叠文件；主控实现 C 并提供依赖入口。真实 PG 环境另行核实，不等待用户批准日常任务。
-- 尚未执行：业务代码提取、PG 初始化、迁移、外部调用、产品回归。
+- 下一动作：独占临时 PG 数据库的 CI 验证，随后按模块拆分；历史归属迁移单独形成 G-MIGRATION 材料。
+- 尚未完成：真实 PG 结果、模块提取、历史场次迁移、完整业务验收。未合并、未部署。

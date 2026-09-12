@@ -14,6 +14,7 @@ class ICardsSource {
     async run(sql, params) { throw new Error("Method not implemented"); }
     async get(sql, params) { throw new Error("Method not implemented"); }
     async all(sql, params) { throw new Error("Method not implemented"); }
+    async close() {}
 }
 
 /**
@@ -27,8 +28,8 @@ class PostgresCardsSource extends ICardsSource {
     }
 
     async init() {
-        const pool = createPool(this.connectionString);
-        this.api = makePgApi(pool);
+        this.pool = createPool(this.connectionString);
+        this.api = makePgApi(this.pool);
 
         await this.run(`
       CREATE TABLE IF NOT EXISTS cards (
@@ -158,6 +159,13 @@ class PostgresCardsSource extends ICardsSource {
         console.log(`✅ [PostgreSQL] Cards database initialized`);
     }
 
+    async close() {
+        const pool = this.pool;
+        this.pool = null;
+        this.api = null;
+        if (pool) await pool.end();
+    }
+
     run(sql, params = []) { return this.api.run(sql, params); }
     get(sql, params = []) { return this.api.get(sql, params); }
     all(sql, params = []) { return this.api.all(sql, params); }
@@ -171,6 +179,12 @@ class SQLiteCardsSource extends ICardsSource {
         super();
         this.dbPath = dbPath;
         this.db = null;
+    }
+
+    async close() {
+        const db = this.db;
+        this.db = null;
+        if (db) await new Promise((resolve, reject) => db.close(err => err ? reject(err) : resolve()));
     }
 
     async init() {
@@ -407,8 +421,9 @@ class FeishuCardsSource extends ICardsSource {
 
 let currentSource = null;
 
-export async function initCardsDb() {
-    const sourceType = process.env.CARDS_SOURCE || 'postgres'; // 'postgres' | 'sqlite' | 'feishu'
+export async function initCardsDb({ source, connectionString, sqlitePath } = {}) {
+    if (currentSource) throw new Error("Cards database is already initialized; close it before restarting.");
+    const sourceType = source || process.env.CARDS_SOURCE || 'postgres'; // 'postgres' | 'sqlite' | 'feishu'
 
     if (sourceType === 'feishu') {
         currentSource = new FeishuCardsSource(
@@ -418,11 +433,11 @@ export async function initCardsDb() {
             process.env.FEISHU_TABLE_ID
         );
     } else if (sourceType === 'sqlite') {
-        const dbPath = process.env.CARDS_DB_PATH || "./data/cards.db";
+        const dbPath = sqlitePath || process.env.CARDS_DB_PATH || "./data/cards.db";
         currentSource = new SQLiteCardsSource(dbPath);
     } else {
         // 卡牌表与主库表名不冲突，默认复用主库连接串（同一个 PG database）
-        const conn = process.env.CARDS_DATABASE_URL || process.env.DATABASE_URL ||
+        const conn = connectionString || process.env.CARDS_DATABASE_URL || process.env.DATABASE_URL ||
             "postgres://postgres:postgres@localhost:5432/wqt";
         currentSource = new PostgresCardsSource(conn);
     }
@@ -431,6 +446,12 @@ export async function initCardsDb() {
 }
 
 // 导出与旧接口兼容的方法
+export async function closeCardsDb() {
+    const source = currentSource;
+    currentSource = null;
+    if (source) await source.close();
+}
+
 export function cardsDbRun(sql, params) { return currentSource.run(sql, params); }
 export function cardsDbGet(sql, params) { return currentSource.get(sql, params); }
 export function cardsDbAll(sql, params) { return currentSource.all(sql, params); }
