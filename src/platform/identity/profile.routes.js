@@ -1,3 +1,9 @@
+import {
+  accessibleSession,
+  currentActor,
+  sessionScope,
+} from "../access/session-scope.js";
+import { listSessionFiles } from "../../integrations/media/session-files.js";
 import bcrypt from "bcryptjs";
 import { dbRun, dbGet, dbAll } from "../../db.js";
 import { authMiddleware } from "../../middleware/auth.js";
@@ -40,6 +46,7 @@ export function registerProfileRoutes(app, { ossClient = null } = {}) {
   app.get("/api/me/activities", authMiddleware, async (req, res) => {
     const uid = req.user.uid;
     try {
+      const scope = sessionScope(await currentActor(uid), "gs");
       const rows = await dbAll(
         `
       SELECT a.id, a.name, a.activity_code, a.started_at, a.ended_at,
@@ -48,10 +55,10 @@ export function registerProfileRoutes(app, { ossClient = null } = {}) {
       FROM activity_sessions as2
       JOIN activities a ON a.id = as2.activity_id
       JOIN game_sessions gs ON gs.id = as2.session_id
-      WHERE gs.user_id = ?
+      WHERE ${scope.sql}
       ORDER BY gs.started_at DESC
     `,
-        [uid],
+        scope.params,
       );
       res.json({ activities: rows });
     } catch (e) {
@@ -63,17 +70,20 @@ export function registerProfileRoutes(app, { ossClient = null } = {}) {
   app.get("/api/me/activities/created", authMiddleware, async (req, res) => {
     const uid = req.user.uid;
     try {
+      const actor = await currentActor(uid);
+      const scope = sessionScope(actor, "gs");
       const rows = await dbAll(
         `
       SELECT a.id, a.name, a.organizer, a.activity_code, a.started_at, a.ended_at, a.status, a.created_at,
-             COUNT(DISTINCT as2.session_id) as table_count
+             COUNT(DISTINCT gs.id) as table_count
       FROM activities a
       LEFT JOIN activity_sessions as2 ON as2.activity_id = a.id
-      WHERE a.created_by = ?
+      LEFT JOIN game_sessions gs ON gs.id = as2.session_id AND ${scope.sql}
+      WHERE a.created_by = ? AND (a.enterprise_id IS NULL OR a.enterprise_id = ?)
       GROUP BY a.id
       ORDER BY a.created_at DESC
     `,
-        [uid],
+        [...scope.params, uid, actor.enterprise_id || null],
       );
       res.json({ activities: rows });
     } catch (e) {
@@ -238,15 +248,16 @@ export function registerProfileRoutes(app, { ossClient = null } = {}) {
     const offset = Number(req.query.offset) || 0;
 
     try {
+      const scope = sessionScope(await currentActor(req.user.uid), "s");
       const rows = await dbAll(
         `SELECT id, started_at, ended_at, final_score, game_mode, status, payload_json
-       FROM game_sessions WHERE user_id = ? AND status != 'abandoned'
+       FROM game_sessions s WHERE ${scope.sql} AND status != 'abandoned'
        ORDER BY started_at DESC LIMIT ? OFFSET ?`,
-        [uid, limit, offset],
+        [...scope.params, limit, offset],
       );
       const total = await dbGet(
-        "SELECT COUNT(*) as cnt FROM game_sessions WHERE user_id = ? AND status != 'abandoned'",
-        [uid],
+        `SELECT COUNT(*) as cnt FROM game_sessions s WHERE ${scope.sql} AND status != 'abandoned'`,
+        scope.params,
       );
       res.json({ sessions: rows, total: total.cnt });
     } catch (e) {
@@ -255,58 +266,11 @@ export function registerProfileRoutes(app, { ossClient = null } = {}) {
   });
 
   // 我的 OSS 文件列表（录音 + 复盘报告）
-  app.get("/api/me/files", authMiddleware, async (req, res) => {
-    if (!ossClient) return res.status(500).json({ error: "服务器未配置 OSS" });
-
-    const uid = req.user.uid;
-    const customDomain = process.env.ALIYUN_OSS_CUSTOM_DOMAIN
-      ? process.env.ALIYUN_OSS_CUSTOM_DOMAIN.replace(/\/$/, "")
-      : null;
-
+  app.get("/api/me/files", authMiddleware, async (req, res, next) => {
     try {
-      const files = [];
-
-      // 列出录音文件
-      const audioResult = await ossClient.list({
-        prefix: `game-audio/user_${uid}_`,
-        "max-keys": 100,
-      });
-      if (audioResult.objects) {
-        for (const obj of audioResult.objects) {
-          files.push({
-            name: obj.name.split("/").pop(),
-            key: obj.name,
-            type: "audio",
-            size: obj.size,
-            lastModified: obj.lastModified,
-            url: customDomain ? `${customDomain}/${obj.name}` : obj.url,
-          });
-        }
-      }
-
-      // 列出复盘报告
-      const reportResult = await ossClient.list({
-        prefix: `game-review/report_${uid}_`,
-        "max-keys": 100,
-      });
-      if (reportResult.objects) {
-        for (const obj of reportResult.objects) {
-          files.push({
-            name: obj.name.split("/").pop(),
-            key: obj.name,
-            type: obj.name.endsWith(".html") ? "report_html" : "report_md",
-            size: obj.size,
-            lastModified: obj.lastModified,
-            url: customDomain ? `${customDomain}/${obj.name}` : obj.url,
-          });
-        }
-      }
-
-      // 按时间倒序
-      files.sort((a, b) => new Date(b.lastModified) - new Date(a.lastModified));
-      res.json({ files });
-    } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.json({ files: await listSessionFiles(req.user.uid) });
+    } catch (error) {
+      next(error);
     }
   });
 }

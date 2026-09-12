@@ -46,3 +46,9 @@ R1 提交 61502a1 的 [Runtime isolation](https://github.com/veasil/wqt-platform
 R2/R3 主控集成平台、场次、活动、卡牌与媒体路由；保留已有认证/权限服务入口。98 条 app 注册语句 AST 对照：96 条一致，2 条仅对象键引号被格式化移除、语义相同。路由与中间件完整顺序快照通过。主控修复子代理卡牌函数提前闭合和遗漏 fsPromises 引入，新增 ESLint no-undef 持续检查。新增真实登录/验证码消费、实时角色/组织/到期/会话撤销用例，下一次 CI 验证。
 
 G-MIGRATION：用户确认 migration-gate.md 的 M1–M4，授权隔离环境实现与验证；未授权生产迁移/上线。
+
+## T1 / G-AUTH 实现（待本批 CI）
+
+1608353 的 [Runtime isolation](https://github.com/veasil/wqt-platform/actions/runs/34685149253) 成功，6 项测试无跳过；包含完整登录和实时撤权。后续 T1 新增固定归属、单连接事务、活动关联、私有文件metadata及鉴权下载；G-AUTH 获需求方确认，移除手机号免验证和默认开发密钥入口，公开配置改白名单。未知存量不会按当前成员回填。
+
+新增独占 PG 场景：租户转移、文件/AI撤权、上传失败补偿、旧 schema 迁移与只读盘点、管理登录。外部 OSS 为内存替身；浏览器调用已适配 sessionId 和认证下载。所有集成场景必须显式执行并输出完成标记，不能只 import 测试模块认定通过。生产公开文件地址、实际短信/OSS配置、存量数量与正式发布尚未验证。

@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import { config } from "../config.js";
 import { isSessionValid, touchSession } from "../services/sessions.js";
 import { resolveValidity } from "../account.js";
+import { dbGet } from "../db.js";
 
 // JWT 签发：7 天有效，携带 role / enterpriseId / jti(单设备会话) / env(环境标记)
 export function signToken(user) {
@@ -59,7 +60,9 @@ export async function authMiddleware(req, res, next) {
     return res.status(403).json({ error: "账号已到期或被停用，请联系管理员", code: validity.reason, validUntil: validity.until });
   }
 
-  req.user = payload;
+  const current = await dbGet("SELECT role, enterprise_id FROM users WHERE id = ?", [payload.uid]);
+  if (!current) return res.status(401).json({ error: "账号不存在" });
+  req.user = { ...payload, role: current.role, enterpriseId: current.enterprise_id || null };
   req.accountValidity = validity;
   touchSession(payload.jti).catch(() => {});
   next();

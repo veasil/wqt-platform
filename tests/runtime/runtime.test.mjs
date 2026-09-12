@@ -61,11 +61,31 @@ test("createApp assembles without a database and preserves basic HTTP semantics"
   }
 });
 
-test("module extraction preserves the ordered routes and middleware from 61502a1", async () => {
+test("routing preserves the baseline order plus explicitly approved tenant guards", async () => {
   const { createApp } = await import(appUrl);
   const expected = JSON.parse(
     await readFile(new URL("./fixtures/routes.json", import.meta.url), "utf8"),
   );
+  // T1 intentionally adds role checks, a private file endpoint, and an error boundary.
+  for (const route of expected.filter(
+    (layer) =>
+      layer.path === "/api/admin/oss/files" ||
+      /^\/api\/admin\/(activities|level-applications|feedback)(\/|$)/.test(
+        layer.path || "",
+      ) ||
+      layer.path === "/api/admin/users/:id/level",
+  )) {
+    route.handlers.push("<anonymous>");
+  }
+  const activityIndex = expected.findIndex(
+    (layer) => layer.path === "/api/admin/activities",
+  );
+  expected.splice(activityIndex, 0, {
+    path: "/api/session-files/:id",
+    methods: ["get"],
+    handlers: ["authMiddleware", "<anonymous>"],
+  });
+  expected.splice(expected.length - 1, 0, { ...expected.at(-1) });
   function signature(stack) {
     return stack.map((layer) =>
       layer.route

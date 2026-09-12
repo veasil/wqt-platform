@@ -42,11 +42,9 @@ export function registerOrganizationRoutes(app) {
           existingUser &&
           (existingUser.role === "boss" || existingUser.role === "operator")
         ) {
-          return res
-            .status(409)
-            .json({
-              error: "该账号已是系统管理员（boss/运营），不能作为组织管理员",
-            });
+          return res.status(409).json({
+            error: "该账号已是系统管理员（boss/运营），不能作为组织管理员",
+          });
         }
         if (existingUser && existingUser.enterprise_id) {
           return res.status(409).json({ error: "该手机号已关联其他组织" });
@@ -315,13 +313,13 @@ export function registerOrganizationRoutes(app) {
         const members = await dbAll(
           `
       SELECT u.id, u.username, u.phone, u.real_name, u.guardian_name, u.watcher_level, u.created_at,
-        (SELECT MAX(gs.started_at) FROM game_sessions gs WHERE gs.user_id = u.id) as last_active,
-        (SELECT COUNT(*) FROM game_sessions gs WHERE gs.user_id = u.id) as total_games
+        (SELECT MAX(gs.started_at) FROM game_sessions gs WHERE gs.user_id = u.id AND gs.organization_id = ? AND gs.ownership_kind = 'organization') as last_active,
+        (SELECT COUNT(*) FROM game_sessions gs WHERE gs.user_id = u.id AND gs.organization_id = ? AND gs.ownership_kind = 'organization') as total_games
       FROM users u
       WHERE u.enterprise_id = ? AND u.id != ?
       ORDER BY u.created_at DESC
     `,
-          [req.org.id, req.user.uid],
+          [req.org.id, req.org.id, req.org.id, req.user.uid],
         );
         const memberCount = await dbGet(
           "SELECT COUNT(*) as cnt FROM users WHERE enterprise_id = ?",
@@ -472,8 +470,8 @@ export function registerOrganizationRoutes(app) {
         if (!member) return res.status(403).json({ error: "非本组织成员" });
 
         const sessions = await dbAll(
-          "SELECT id, started_at, ended_at, final_score, game_mode FROM game_sessions WHERE user_id = ? ORDER BY started_at DESC",
-          [memberId],
+          "SELECT id, started_at, ended_at, final_score, game_mode FROM game_sessions WHERE user_id = ? AND organization_id = ? AND ownership_kind = 'organization' ORDER BY started_at DESC",
+          [memberId, req.org.id],
         );
         const totalGames = sessions.length;
         const avgScore = totalGames
@@ -505,16 +503,15 @@ export function registerOrganizationRoutes(app) {
         const activeMembers = await dbGet(
           `
       SELECT COUNT(DISTINCT gs.user_id) as cnt FROM game_sessions gs
-      JOIN users u ON u.id = gs.user_id
-      WHERE u.enterprise_id = ? AND gs.started_at > ?
+      WHERE gs.organization_id = ? AND gs.ownership_kind = 'organization' AND gs.started_at > ?
     `,
           [orgId, thirtyDaysAgo],
         );
         const sessionStats = await dbGet(
           `
       SELECT COUNT(*) as total, ROUND(AVG(gs.final_score), 1) as avg_score
-      FROM game_sessions gs JOIN users u ON u.id = gs.user_id
-      WHERE u.enterprise_id = ?
+      FROM game_sessions gs
+      WHERE gs.organization_id = ? AND gs.ownership_kind = 'organization'
     `,
           [orgId],
         );
@@ -522,8 +519,8 @@ export function registerOrganizationRoutes(app) {
           `
       SELECT gs.id, gs.started_at, gs.ended_at, gs.final_score, gs.game_mode,
              u.guardian_name, u.phone
-      FROM game_sessions gs JOIN users u ON u.id = gs.user_id
-      WHERE u.enterprise_id = ?
+      FROM game_sessions gs LEFT JOIN users u ON u.id = gs.user_id
+      WHERE gs.organization_id = ? AND gs.ownership_kind = 'organization'
       ORDER BY gs.started_at DESC LIMIT 10
     `,
           [orgId],
@@ -562,8 +559,8 @@ export function registerOrganizationRoutes(app) {
         let sql = `
       SELECT gs.id, gs.user_id, gs.started_at, gs.ended_at, gs.final_score, gs.game_mode,
              u.guardian_name, u.phone
-      FROM game_sessions gs JOIN users u ON u.id = gs.user_id
-      WHERE u.enterprise_id = ?
+      FROM game_sessions gs LEFT JOIN users u ON u.id = gs.user_id
+      WHERE gs.organization_id = ? AND gs.ownership_kind = 'organization'
     `;
         const params = [req.org.id];
         if (memberId) {
@@ -610,17 +607,18 @@ export function registerOrganizationRoutes(app) {
         const rows = await dbAll(
           `
       SELECT a.*,
-        COUNT(DISTINCT as2.session_id) as table_count,
+        COUNT(DISTINCT gs.id) as table_count,
         COUNT(DISTINCT gs.user_id) as participant_count,
         ROUND(AVG(gs.final_score), 1) as avg_score
       FROM activities a
       LEFT JOIN activity_sessions as2 ON as2.activity_id = a.id
       LEFT JOIN game_sessions gs ON gs.id = as2.session_id
+        AND gs.organization_id = ? AND gs.ownership_kind = 'organization'
       WHERE a.enterprise_id = ?
       GROUP BY a.id
       ORDER BY a.created_at DESC
     `,
-          [req.org.id],
+          [req.org.id, req.org.id],
         );
         res.json({ activities: rows });
       } catch (e) {
@@ -706,11 +704,12 @@ export function registerOrganizationRoutes(app) {
              u.guardian_name, u.phone, as2.table_no
       FROM activity_sessions as2
       JOIN game_sessions gs ON gs.id = as2.session_id
-      JOIN users u ON u.id = gs.user_id
+      LEFT JOIN users u ON u.id = gs.user_id
       WHERE as2.activity_id = ?
+        AND gs.organization_id = ? AND gs.ownership_kind = 'organization'
       ORDER BY as2.table_no ASC
     `,
-          [req.params.id],
+          [req.params.id, req.org.id],
         );
         res.json({ activity, sessions: rows });
       } catch (e) {

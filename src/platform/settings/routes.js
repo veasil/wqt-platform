@@ -9,9 +9,16 @@ export function registerSettingsRoutes(app) {
   // ======== API: System Settings ========
   app.get("/api/settings", async (req, res) => {
     try {
-      const settings = await getAllSettings();
-      // 过滤掉敏感或不适合前端直接看到的配置（如果有的话）
-      // 目前全部返回
+      const publicKeys = new Set([
+        "DEFAULT_GAME_TIME",
+        "GAME_MODES",
+        "REVIEW_MIN_CARDS",
+        "BRANDING_INFO",
+        "ATTRIBUTES_CONFIG",
+      ]);
+      const settings = (await getAllSettings()).filter((setting) =>
+        publicKeys.has(setting.key),
+      );
       res.json({ ok: true, settings });
     } catch (e) {
       res.status(500).json({ error: "Failed to fetch settings" });

@@ -84,18 +84,18 @@ async function query(pool, text, params, { retry } = { retry: true }) {
  *   get → 单行对象 | undefined   （读语句，瞬时断连自动重试）
  *   all → 行数组                 （读语句，瞬时断连自动重试）
  */
-export function makePgApi(pool) {
+export function makePgApi(pool, { retryReads = true } = {}) {
   return {
     async run(sql, params = []) {
       const res = await query(pool, transformSql(sql), params, { retry: false });
       return { lastID: res.rows && res.rows[0] ? res.rows[0].id : undefined, changes: res.rowCount };
     },
     async get(sql, params = []) {
-      const res = await query(pool, toPgParams(sql), params, { retry: true });
+      const res = await query(pool, toPgParams(sql), params, { retry: retryReads });
       return res.rows[0];
     },
     async all(sql, params = []) {
-      const res = await query(pool, toPgParams(sql), params, { retry: true });
+      const res = await query(pool, toPgParams(sql), params, { retry: retryReads });
       return res.rows;
     },
   };

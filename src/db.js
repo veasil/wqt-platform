@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { makePgApi, createPool } from "./sql-pg.js";
+import { migrateSessionOwnership } from "./db/migrations/session-ownership.js";
 
 let pool;
 let api;
@@ -193,7 +194,6 @@ export async function initDb({ connectionString } = {}) {
 
   // 预设默认配置 (Seed)
   const defaults = [
-    ["DEV_KEY", "sj0127wqt", "开发者登录密钥（boss 级别）"],
     ["operator_permissions", "{}", "各运营账号权限配置 {user_id: [modules]}"],
     ["DEFAULT_GAME_TIME", "5000", "游戏默认倒计时时长（秒）"],
     ["GAME_MODES", JSON.stringify([
@@ -221,6 +221,7 @@ export async function initDb({ connectionString } = {}) {
     }
   }
 
+  await withTransaction(migrateSessionOwnership);
   console.log('✅ Main database initialized (PostgreSQL)');
 }
 
@@ -229,6 +230,25 @@ export async function closeDb() {
   pool = undefined;
   api = undefined;
   if (ownedPool) await ownedPool.end();
+}
+
+// All statements in a transaction must use this single checked-out connection.
+export async function withTransaction(work) {
+  if (!pool) throw new Error("Main database is not initialized");
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await work(makePgApi(client, { retryReads: false }));
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    try { await client.query("ROLLBACK"); } catch (rollbackError) {
+      error.rollbackError = rollbackError;
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function getSystemSetting(key, defaultValue = null) {

@@ -141,6 +141,15 @@ export function createApp({
   app.use(accountAdminRouter);
   app.use(adminDataRouter);
 
+  app.use((error, req, res, next) => {
+    if (res.headersSent) return next(error);
+    const status = Number.isInteger(error.status) ? error.status : 500;
+    if (status >= 500) console.error("Request failed:", error.message);
+    res
+      .status(status)
+      .json({ error: status >= 500 ? "服务器处理失败" : error.message });
+  });
+
   app.use((req, res) => {
     if (
       req.path.startsWith("/api/") ||

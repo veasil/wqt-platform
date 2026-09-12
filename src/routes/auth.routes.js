@@ -41,57 +41,70 @@ router.post("/api/auth/register", async (req, res) => {
   res.json({ user, token });
 });
 
-// ======== 主登录：手机号 + 密码 + 验证码（三要素，单设备）========
-// 前端流程：先调 /api/auth/sms/send 拿验证码，再带 phone+password+code 调本接口。
-router.post("/api/auth/login", async (req, res) => {
+// 登录共用三要素校验：手机号 + 密码 + 验证码，并实时检查角色和会员有效期。
+async function authenticateLogin(req, { adminOnly = false } = {}) {
   const phone = normalizePhone(req.body?.phone || req.body?.username || "");
   const { password, code } = req.body || {};
-  if (!phone || !password || !code) {
-    return res.status(400).json({ error: "请填写手机号、密码和验证码" });
-  }
+  if (!phone || !password || !code) return { status: 400, error: "请填写手机号、密码和验证码" };
 
   const user = await dbGet(
     "SELECT id, username, phone, password_hash, role, enterprise_id, guardian_name FROM users WHERE phone = ?",
     [phone]
   );
-  if (!user) return res.status(401).json({ error: "手机号或密码错误" });
-  if (!user.password_hash) return res.status(401).json({ error: "该账号未设置密码，请联系管理员" });
+  if (!user) return { status: 401, error: "手机号或密码错误" };
+  if (!user.password_hash) return { status: 401, error: "该账号未设置密码，请联系管理员" };
   if (!bcrypt.compareSync(password, user.password_hash)) {
-    return res.status(401).json({ error: "手机号或密码错误" });
+    return { status: 401, error: "手机号或密码错误" };
+  }
+
+  if (adminOnly && !["boss", "operator"].includes(user.role)) {
+    return { status: 403, error: "⛔ 仅 boss 和运营账号可登录管理后台" };
   }
 
   // 验证码校验（消费，防重放）
   const v = await verifyCode(phone, String(code).trim(), { consume: true });
-  if (!v.ok) return res.status(400).json({ error: v.error || "验证码错误" });
+  if (!v.ok) return { status: 400, error: v.error || "验证码错误" };
 
   // 会员有效期校验（登录时即拦截，给出明确提示）
   const validity = await resolveValidity(user.id);
   if (!validity.valid) {
-    return res.status(403).json({ error: "账号已到期或被停用，请联系管理员", code: validity.reason, validUntil: validity.until });
+    return { status: 403, error: "账号已到期或被停用，请联系管理员", code: validity.reason, validUntil: validity.until };
   }
 
   const token = await issueSession(req, user);
-  res.json({
+  return { user, token, adminOnly };
+}
+
+function loginResponse(result) {
+  return {
     user: {
-      id: user.id,
-      username: user.username || user.phone,
-      phone: user.phone,
-      guardianName: user.guardian_name,
-      role: user.role || "watcher",
-      enterpriseId: user.enterprise_id || null,
-      isProfileComplete: !!user.guardian_name,
+      id: result.user.id,
+      username: result.user.username || result.user.phone,
+      phone: result.user.phone,
+      guardianName: result.user.guardian_name,
+      role: result.user.role || "watcher",
+      enterpriseId: result.user.enterprise_id || null,
+      isProfileComplete: result.adminOnly ? true : !!result.user.guardian_name,
     },
-    token,
-  });
+    token: result.token,
+  };
+}
+
+// ======== 主登录：手机号 + 密码 + 验证码（三要素，单设备）========
+router.post("/api/auth/login", async (req, res) => {
+  const result = await authenticateLogin(req);
+  if (result.error) return res.status(result.status).json({ error: result.error, ...(result.code ? { code: result.code, validUntil: result.validUntil } : {}) });
+  res.json(loginResponse(result));
 });
 
-// ======== 开发者登录（boss 级，DEV_KEY）========
+// ======== 开发环境显式启用的登录（不读取数据库默认密钥）========
 router.post("/api/auth/dev-login", async (req, res) => {
+  if (process.env.NODE_ENV !== "development" || process.env.ENABLE_DEV_LOGIN !== "true" || !process.env.DEV_LOGIN_KEY || process.env.DEV_LOGIN_KEY.length < 32 || process.env.DEV_LOGIN_KEY === "sj0127wqt") {
+    return res.status(404).json({ error: "接口不存在" });
+  }
   const { key } = req.body || {};
   if (!key) return res.status(400).json({ error: "缺少密钥" });
-
-  const dbDevKey = await getSystemSetting("DEV_KEY", "sj0127wqt");
-  if (key !== dbDevKey) return res.status(401).json({ error: "开发者密钥错误" });
+  if (key !== process.env.DEV_LOGIN_KEY) return res.status(401).json({ error: "开发者密钥错误" });
 
   const username = "dev_user";
   let user = await dbGet("SELECT id, username, role FROM users WHERE username = ?", [username]);
@@ -108,34 +121,11 @@ router.post("/api/auth/dev-login", async (req, res) => {
   res.json({ user: { id: user.id, username: user.username, role: user.role, isProfileComplete: true }, token });
 });
 
-// ======== 管理后台手机号登录（仅 boss/operator，无需验证码）========
+// ======== 管理后台登录（boss/operator，完整三要素验证）========
 router.post("/api/auth/admin-login", async (req, res) => {
-  const phone = normalizePhone(req.body?.phone || "");
-  if (!phone) return res.status(400).json({ error: "缺少手机号" });
-
-  const user = await dbGet(
-    "SELECT id, phone, username, guardian_name, role, enterprise_id FROM users WHERE phone = ?",
-    [phone]
-  );
-  if (!user) return res.status(404).json({ error: "用户不存在" });
-
-  const allowedRoles = ["boss", "operator"];
-  if (!allowedRoles.includes(user.role)) {
-    return res.status(403).json({ error: "⛔ 仅 boss 和运营账号可登录管理后台" });
-  }
-
-  const token = await issueSession(req, { id: user.id, username: user.phone || user.username, role: user.role, enterprise_id: user.enterprise_id });
-  res.json({
-    user: {
-      id: user.id,
-      username: user.username || user.phone,
-      phone: user.phone,
-      guardianName: user.guardian_name,
-      role: user.role,
-      isProfileComplete: true,
-    },
-    token,
-  });
+  const result = await authenticateLogin(req, { adminOnly: true });
+  if (result.error) return res.status(result.status).json({ error: result.error, ...(result.code ? { code: result.code, validUntil: result.validUntil } : {}) });
+  res.json(loginResponse(result));
 });
 
 // ======== 短信验证码：发送 ========

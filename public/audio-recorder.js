@@ -9,6 +9,8 @@ class AudioRecorder {
         this.dataArray = null;
         this.animationId = null;
         this.selectedDeviceId = null;
+        this.sessionId = null;
+        this.uploading = false;
     }
 
     async checkPermission() {
@@ -72,7 +74,14 @@ class AudioRecorder {
     }
 
     async startRecording() {
+        if (this.isRecording || this.uploading) return false;
         try {
+            this.sessionId = window.GameReview?.getSessionId?.() || Number(sessionStorage.getItem('WQT_SESSION_ID')) || null;
+            if (!this.sessionId) {
+                alert('请先开局后再录音');
+                return false;
+            }
+            const recordingSessionId = this.sessionId;
             // 检查权限
             const permission = await this.checkPermission();
             if (permission === 'denied') {
@@ -104,7 +113,8 @@ class AudioRecorder {
             };
 
             this.mediaRecorder.onstop = () => {
-                this.uploadRecording();
+                this.uploading = true;
+                this.uploadRecording(recordingSessionId);
                 this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
             };
 
@@ -132,20 +142,22 @@ class AudioRecorder {
 
     stopRecording() {
         if (this.mediaRecorder && this.isRecording) {
+            this.uploading = true;
             this.mediaRecorder.stop();
             this.isRecording = false;
             cancelAnimationFrame(this.animationId);
         }
     }
 
-    async uploadRecording() {
-        if (!this.audioChunks.length) return;
+    async uploadRecording(sessionId = this.sessionId) {
+        if (!this.audioChunks.length) { this.uploading = false; return; }
 
         const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
 
         // 创建 FormData
         const formData = new FormData();
         formData.append("file", audioBlob, "recording.webm");
+        formData.append("sessionId", String(sessionId));
 
         try {
             // 获取 token
@@ -167,13 +179,18 @@ class AudioRecorder {
             if (res.ok) {
                 const data = await res.json();
                 console.log("✅ 录音上传成功:", data.url);
-                // 在进度展示区显示一条带有链接的消息
+                // 在进度展示区显示下载按钮；会话文件必须通过带认证的 fetch 获取
                 const progressBox = document.getElementById('progress-display');
                 if (progressBox) {
                     progressBox.innerHTML = `
                         <p style="color: #28a745; margin-bottom: 5px;">🎤 录音已上传成功！</p>
-                        <a href="${data.url}" target="_blank" style="color: #007bff; font-size: 12px; word-break: break-all;">${data.url}</a>
+                        <button id="audio-download-file" type="button" style="color:#007bff;background:none;border:0;padding:0;cursor:pointer;font-size:12px;">下载录音（需登录）</button>
                     `;
+                    const button = progressBox.querySelector('#audio-download-file');
+                    button.onclick = async () => {
+                        const { downloadSessionFile } = await import('/session-files.js');
+                        await downloadSessionFile(data.url, { filename: '游戏录音.webm' });
+                    };
                 }
             } else {
                 const err = await res.json();
@@ -186,6 +203,7 @@ class AudioRecorder {
             alert("上传过程中发生错误，录音已保存到本地");
             this.saveRecordingLocally(audioBlob);
         } finally {
+            this.uploading = false;
             this.isRecording = false; // 确保状态最终重置
         }
     }

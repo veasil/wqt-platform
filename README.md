@@ -10,7 +10,7 @@
 |---|---|
 | 桌游、组织管理、平台管理 | 已有实现 |
 | Organization 作为 Tenant | 已确认的领域边界 |
-| 场次固定归创建时的组织 | 已批准，待代码与数据迁移 |
+| 场次固定归创建时的组织 | 已实现迁移与访问校验，隔离回归中；未迁移生产 |
 | Learning MVP | 纳入 vNext，尚待实现与验收 |
 | 创客营接入 | 后续架构方向 |
 
@@ -31,12 +31,19 @@
 
 ```text
 wqt-platform/                # 仓库名称；已有本地目录可保留旧名
-├── server.js             # 服务启动、应用装配及尚未拆分的业务路由
-├── src/                  # 后端：认证、权限、数据访问及服务
+├── server.js             # 环境加载与启动调用
+├── src/
+│   ├── app.js            # HTTP 中间件、模块注册、三个前端托管
+│   ├── runtime.js        # 初始化、监听、后台任务与资源关闭
+│   ├── platform/         # 账号资料、组织、配置、场次访问规则
+│   ├── game/             # 场次、活动、卡牌；场次用例独立于 HTTP
+│   ├── integrations/     # AI、媒体与私有场次文件
+│   ├── db/migrations/    # 增量 schema 迁移
+│   └── routes/、services/、middleware/ # 仍复用的认证与管理基础模块
 ├── public/               # 桌游玩家端
 ├── enterprise-panel/     # 组织管理前端
 ├── admin-web/            # 平台管理前端
-├── tests/                # 已跟踪的测试；PG 隔离适配待完成
+├── tests/                # 制品、运行生命周期、租户和私有文件测试
 ├── scripts/              # 数据维护、迁移与运维脚本
 ├── docs/                 # 需求、架构、开发与验收制品
 ├── .github/              # Issue / PR 模板与制品检查 CI
@@ -57,6 +64,8 @@ node --env-file=.env server.js
 
 玩家端访问 [localhost:8080](http://localhost:8080/)。管理端开发、外部服务配置及验证限制见开发指南。
 
+快速检查使用 `npm run lint`、`npm run test:artifacts`、`npm run test:runtime`。未配置测试专用 PG 时，运行时测试只执行无数据库部分，并明确跳过集成用例。完整隔离设置见[开发指南](docs/development/local-development.md)。
+
 ## 团队协作
 
 采用 **artifact-driven development**：需求与验收标准确认后，以版本化制品驱动实现、验证、修复和交付。GitHub 管理 Issue、分支、PR 与版本追踪；开发循环在已确认范围内持续推进，业务验收由指定验收人完成。
@@ -64,4 +73,4 @@ node --env-file=.env server.js
 - [贡献流程](CONTRIBUTING.md)：角色、制品、自动循环、GitHub 与完成标准。
 - [工程约束](AGENTS.md)：所有贡献者和编码代理必须遵守的项目规则。
 - [文档索引](docs/README.md)：需求基线、架构、领域知识与历史资料。
-- [变更制品](docs/changes/README.md)：使用 `npm run change:new -- WQT-002 short-topic` 创建下一项变更；`npm run check:artifacts` 执行与 PR 相同的结构检查。
+- [变更制品](docs/changes/README.md)：使用 `npm run change:new -- WQT-003 short-topic` 创建下一项变更；`npm run check:artifacts` 执行与 PR 相同的结构检查。

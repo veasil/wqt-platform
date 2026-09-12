@@ -6,12 +6,12 @@
 |---|---|---|---|---|---|
 | P0 | Luna 盘点 + 主控复核 | 无 | 只读代码；主控维护本制品 | 启动副作用、环境读取、测试风险清单 | done：只读证据已复核 |
 | P1 | Astra 主控 | P0 | 本 spec/plan/evidence | R1 内部接口和测试隔离契约 | done：下文记录，按证据可演进 |
-| R1-A | Luna 代码提取 | P1 | server.js、src/app.js、src/runtime.js | 机械提取，保留路由顺序和路径；AC-02/04 | reviewed：Luna 返回，主控修正关闭流程 |
-| R1-B | Luna 测试编写 | P1 | tests/runtime/*、tests/helpers/* | 无副作用导入、隔离拒绝路径、启动/关闭测试；AC-02/03 | reviewed：Luna 返回，主控修正夹具顺序 |
-| R1-C | Astra 主控 | P1；与 A 的依赖先约定 | src/db.js、cards-db.js、config.js、services/sms.js；package/CI | 环境加载顺序、资源关闭与真实 PG 测试入口 | reviewed：等待真实 PG CI |
-| R1-D | Astra 主控，必要时派 Luna 修复 | A/B/C | 集成与 evidence | 真实 PG 回归、失败恢复、差异复核 | running：本地 4 passed / PG skipped，提交 CI |
-| R2/R3 | Astra 拆任务、Luna 按模块提取 | R1-D | 每次只分配一个明确模块 | 平台、游戏模块与契约验证 | blocked：R1 |
-| T1 | Astra 设计、Luna 执行已明确部分 | 隔离环境及相关模块可用 | 独立迁移与业务变更批次 | G-MIGRATION；AC-05 | blocked：盘点和迁移方案 |
+| R1-A | Luna 代码提取 | P1 | server.js、src/app.js、src/runtime.js | 机械提取，保留路由顺序和路径；AC-02/04 | done：R1 PG CI 通过 |
+| R1-B | Luna 测试编写 | P1 | tests/runtime/*、tests/helpers/* | 无副作用导入、隔离拒绝路径、启动/关闭测试；AC-02/03 | done：R1 PG CI 通过 |
+| R1-C | Astra 主控 | P1；与 A 的依赖先约定 | src/db.js、cards-db.js、config.js、services/sms.js；package/CI | 环境加载顺序、资源关闭与真实 PG 测试入口 | done：R1 PG CI 通过 |
+| R1-D | Astra 主控，必要时派 Luna 修复 | A/B/C | 集成与 evidence | 真实 PG 回归、失败恢复、差异复核 | done：61502a1 PG 5/5；1608353 PG 6/6 |
+| R2/R3 | Astra 拆任务、Luna 按模块提取 | R1-D | 每次只分配一个明确模块 | 平台、游戏模块与契约验证 | done：主要路由提取、顺序验证通过 |
+| T1 | Astra 设计、Luna 执行已明确部分 | 隔离环境及相关模块可用 | 独立迁移与业务变更批次 | G-MIGRATION；AC-05 | running：M1–M4 已确认，隔离实现与验证 |
 | F | Astra 汇总、需求方验收 | 全部适用标准 | 最终 evidence | G-FINAL | blocked：实现未完成 |
 
 以上写入范围是任务候选；主控完成 P1 后以实际派工契约确定具体文件名。R1-A/B 可以并行写不同文件；R1-C 与它们共享的接口必须先对齐。所有包脚本、工作流与共享文档由主控编辑。
@@ -46,10 +46,10 @@
 
 ## 接续现场
 
-- 当前目标：R1 入口与隔离测试已实现，正在获取真实 PG 集成证据；R2/R3 继续按依赖推进。
+- 当前目标：R1/R2/R3 已通过真实 PG CI；T1 与 G-AUTH 已确认并实现，正在集成回归。
 - 当前分支：codex/runtime-isolation；实现基线 a7ccfe6（规划提交），依赖 codex/wqt-platform-artifacts。接续先核对 git branch --show-current、git rev-parse HEAD、git status --short。
 - 子代理：runtime_extract 和 runtime_tests 均使用 gpt-5.6-luna，非重叠写入；主控负责复核和集成。不能仅凭代理报告认定通过。
 - 工作区原有未跟踪图片、会议文档与 output 不属于本变更，禁止一并提交。
 - 已确认边界：organization=tenant；组织场次固定归创建组织；用户仅最终与重要 gate 验收。
 - 下一动作：独占临时 PG 数据库的 CI 验证，随后按模块拆分；历史归属迁移单独形成 G-MIGRATION 材料。
-- 尚未完成：真实 PG 结果、模块提取、历史场次迁移、完整业务验收。未合并、未部署。
+- 尚未完成：T1/G-AUTH 集成结果、生产数据盘点与迁移、完整业务验收。未合并、未部署。
