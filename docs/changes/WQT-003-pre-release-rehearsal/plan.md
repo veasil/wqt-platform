@@ -4,11 +4,11 @@
 
 | 工作 | 执行者 | 状态 |
 |---|---|---|
-| 验收拆分、资源边界及 CI | Astra 主控 | 执行中 |
-| 合成 PG 备份恢复测试 | Luna restore_rehearsal | 执行中；仅写 recovery 测试文件 |
-| 复核隔离、失败清理、实际断言并跑 CI | Astra 主控 | 等测试返回 |
+| 验收拆分、资源边界及 CI | Astra 主控 | done |
+| 合成 PG 备份恢复测试 | Luna restore_rehearsal | done：主控复核，CI 通过 |
+| 复核隔离、失败清理、实际断言并跑 CI | Astra 主控 | done：PG 12/12、浏览器 CI 通过 |
 | 预发布副本、真实外部服务与完整浏览器链路 | 主控协调 | 需求方明确延期：暂无环境 |
-| 发布证据与最终 gate | 需求方 / 发布负责人 | 未开始 |
+| 发布证据与最终 gate | 需求方 / 发布负责人 | 本轮证据完成；待最终验收，生产 gate 未批准 |
 
 接续分支 codex/pre-release-rehearsal，基线 f7c9956。子代理不得改现有 runtime 和共享文档；主控复核后提交。原工作区未跟踪个人文档、图片及 output 不属于任务。
 

@@ -1,6 +1,6 @@
 # WQT-003 · 预发布迁移演练
 
-状态：CI 合成数据演练执行中；需求方于 2026-09-12 在 WQT-002 合并后明确“继续”。
+状态：CI 合成数据演练技术完成，待最终验收；需求方于 2026-09-12 在 WQT-002 合并后明确“继续”。
 基线：f7c9956e87ca48c7a04c0c4bf50e8261da5369a3，feat/cards-2026-workbench。
 需求来源：WQT-002 最终验收后的下一阶段建议；[发布 gate](../WQT-002-subagents-refactor/release-gate.md)。
 
