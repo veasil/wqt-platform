@@ -13,5 +13,6 @@ npm run test:artifacts
 | 变更 | 内容 |
 |---|---|
 | [WQT-001](WQT-001-platform-artifacts/spec.md) | 仓库更名、团队文档、制品流程与 CI |
+| [WQT-002](WQT-002-subagents-refactor/spec.md) | 模块化架构子代理执行计划与只读盘点 |
 
 小改动仍可使用[单文件模板](../development/change-template.md)，以相同 `WQT-编号-主题` 目录内的 `change.md` 保存目标、验收、计划、证据。检查器支持三文件及单文件两种形式；完成状态由证据与验收人决定，结构检查不代替审批。
