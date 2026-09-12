@@ -24,6 +24,6 @@ export async function runOwnershipAuditScenario(client) {
     "personal",
     "schema",
     "total",
-  ]);
+  ].sort());
   return result;
 }
