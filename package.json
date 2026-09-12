@@ -1,5 +1,5 @@
 {
-  "name": "wqt-game-auth-backend",
+  "name": "wqt-platform",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -8,7 +8,10 @@
     "start": "node server.js",
     "build": "npm --prefix enterprise-panel install && npm --prefix enterprise-panel run build && npm --prefix admin-web install && npm --prefix admin-web run build",
     "migrate:pg": "node scripts/migrate_sqlite_to_pg.mjs",
-    "test:bench": "node test/bench/run.mjs"
+    "test:bench": "node test/bench/run.mjs",
+    "change:new": "node scripts/artifacts/new-change.mjs",
+    "check:artifacts": "node scripts/artifacts/check.mjs",
+    "test:artifacts": "node --test tests/artifacts.test.mjs"
   },
   "allowScripts": {
     "sqlite3@5.1.7": true
