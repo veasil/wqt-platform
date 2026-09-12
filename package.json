@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
-    "build": "npm --prefix enterprise-panel install && npm --prefix enterprise-panel run build && npm --prefix admin-web install && npm --prefix admin-web run build",
+    "build": "npm --prefix enterprise-panel ci --include=dev && npm --prefix enterprise-panel run build && npm --prefix admin-web ci --include=dev && npm --prefix admin-web run build",
     "migrate:pg": "node scripts/migrate_sqlite_to_pg.mjs",
     "test:bench": "node test/bench/run.mjs",
     "change:new": "node scripts/artifacts/new-change.mjs",

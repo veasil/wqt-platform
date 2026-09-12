@@ -21,10 +21,10 @@ jobs:
         with:
           python-version: '3.12'
       - run: npm ci
-      - run: npm ci --prefix admin-web
-      - run: npm --prefix admin-web run build
-      - run: npm ci --prefix enterprise-panel
-      - run: npm --prefix enterprise-panel run build
+      - name: Build frontends with production deployment environment
+        run: npm run build
+        env:
+          NODE_ENV: production
       - run: python -m pip install -r tests/browser/requirements.txt
       - run: python -m playwright install --with-deps chromium
       - name: Browser contracts with fake HTTP and no database

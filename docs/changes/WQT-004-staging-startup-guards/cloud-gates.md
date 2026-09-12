@@ -53,3 +53,12 @@
 - 已创建空应用服务wqt-api（6aa541a95dbe69df73c8b49d），尚未绑定代码或启动，可供后续配置独立凭据。项目入口：https://zeabur.com/projects/6aa541025dbe69df73c8b41f 。
 
 - SQL只读验证限制：对新PG服务执行psql查询current_database/server_version/data_directory/空表计数，两次API客户端分别在25秒、55秒超时，未获得exitCode/output。没有执行写入SQL，不推断查询成功；后续需通过平台终端或修复执行通道继续验证，不为检查临时开放数据库公网。
+
+## 继续部署的排查与验证
+
+- 新PG executeCommand简单命令成功；随后sh -c下运行非交互psql（-X -w，PGCONNECT_TIMEOUT=5，stdin=/dev/null），exitCode=0。查询确认wqt_staging、PostgreSQL18.6、data_directory=/var/lib/postgresql/18/docker、public业务表数0。旧API超时根因未证实，不能直接归因数据库故障。
+- 旧空wqt-api的deploy(gitRef.ref=SHA)与完整refs/heads分支均被平台解析为main/352edf1；部署6aa5440cbda3ae6d4ec89389和6aa5445b7a2a029fbe0d2abc均已取消。未配置DB连接、未运行迁移。deployFromSpecification尝试在创建部署前报Invalid input/Failed to get Dockerfile；没有报告成功。
+- 改用createService(template:GIT,gitProvider:GITHUB,repoID,branchName)创建wqt-candidate（6aa54496a97995bc0221efcb），部署6aa544977a2a029fbe0d2ac7记录实际d358bbf4b0d3b3ee8ec02840374a42cc625e5ac3、refs/heads/codex/staging-startup-guards；随后关闭该候选服务Git trigger。
+- 构建器警告没有SOURCE_GIT_COMMIT_SHA，会按分支拉取；本轮构建期间不推送分支。部署元数据不是严格不可变源证明，后续发布仍须解决固定源制品。
+- 正确分支构建已通过root npm install，没有重现EALLOWREMOTE；随后npm run build因vite:not found退出127。原因：NODE_ENV=production使前端npm install默认跳过devDependencies，而Vite属于构建依赖。
+- 修复：根build改为两前端npm ci --include=dev，使用锁文件并显式包含构建依赖。Browser CI改用NODE_ENV=production执行根build，覆盖实际触发条件。此变更不降低应用运行模式，不填假外部凭据。
