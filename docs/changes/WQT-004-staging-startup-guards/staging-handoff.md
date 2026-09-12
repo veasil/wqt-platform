@@ -9,7 +9,7 @@
 | CI | PG18/PG16 与浏览器检查按 CI 结果判断 | CI 通过后才允许使用候选版本部署；构建通过不代表外部服务可用 |
 | 资源就绪 | 服务器 `wqt-staging-hk`（`6aa54068aa8a37958d958950`）、项目 `wqt-staging`（`6aa541025dbe69df73c8b41f`）、PG18 `wqt-staging-pg`（`6aa5412af9b152e74791f0a3`，RUNNING）、候选应用 `wqt-candidate`（`6aa54496a97995bc0221efcb`） | 独立服务器、项目和数据库已准备；服务器自动续费已关闭 |
 | PG18 只读验证 | PostgreSQL 18.6，数据目录 `/var/lib/postgresql/18/docker`，业务表计数为 0；非交互 `sh -c 'psql -X -w </dev/null'` 成功 | 空库条件已取得只读证据；旧 API 客户端超时根因仍未确定 |
-| 构建验证中 | 候选部署 `6aa544977a2a029fbe0d2ac3`，实际 SHA `d358bbf4b0d3b3ee8ec02840374a42cc625e5ac3`，状态 `FAILED（前端构建缺Vite，修复复验中）`；候选 git trigger 已关闭 | 这是无凭据的构建/失败保护验证，不是业务上线 |
+| 构建验证中 | 候选部署 `6aa544977a2a029fbe0d2ac3`，实际 SHA `d358bbf4b0d3b3ee8ec02840374a42cc625e5ac3`，状态 `SUSPENDED（构建修复通过、缺配置拒绝验证后暂停）`；候选 git trigger 已关闭 | 这是无凭据的构建/失败保护验证，不是业务上线 |
 | 应用 | 旧 `wqt-api` 两次 gitRef 被平台忽略并选 `main`，部署已取消且无 DB 连接；当前以 `wqt-candidate` 为配置目标 | 应用尚未就绪，不能报告启动保护、合成数据或真实联调通过 |
 | 生产交付 | `scoring-system` 的生产 Git trigger 已为 `null`，生产服务仍 RUNNING | 不因本次预发布工作触发生产部署；正式发布仍需候选版本与发布 gate |
 
@@ -87,3 +87,7 @@
 - **任一 staging 凭据可访问生产目标**：立即停止联调并撤销/重发 staging 凭据，修复权限边界后再继续；不通过修改预期变量掩盖问题。
 
 本交接依赖 `spec.md`、`configuration.md` 与 `cloud-gates.md` 中已批准的 G-TRIGGER/G-RESOURCE 记录；不要求重新批准这些既有 gate。若实际报价、资源 ID、权限边界或应用支持的变量发生变化，记录差异并升级给相应负责人后再继续。
+
+## 最新复验结果
+
+候选b4124699f7c3acc979a35105595ec28bda017db0已通过全部CI及Zeabur镜像构建，部署6aa545da7a2a029fbe0d2af9。云端容器日志确认Startup guard rejected JWT_SECRET，符合本轮无凭据拒绝实验；之后已暂停候选。配置仍以wqt-candidate为目标，不能把暂停/缺配置拒绝当作正常可用。旧wqt-api保留未使用，不向它写入凭据。下一步先准备真实独立配置，再恢复候选、验证正常预检/初始化与合成数据。

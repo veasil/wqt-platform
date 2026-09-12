@@ -37,3 +37,7 @@
 最新文档提交7695845的Runtime、Browser、Artifact CI均通过，Runtime run 34690167773、Browser run 34690167782；本轮仅追加云资源证据。
 
 云端SQL只读验证的executeCommand两次超时，尚无查询成功证据；未进行云端合成数据写入。应用空服务已创建但未绑定代码，独立外部配置已向需求方询问。
+
+## 云端继续验证与构建修复
+
+PG只读验证已成功：18.6、wqt_staging、/var/lib/postgresql/18/docker、公有业务表0；旧API超时不能当数据库故障证据。正确分支候选构建已通过root依赖安装，前端阶段因生产环境跳过Vite失败。b412469把前端安装改为ci --include=dev，并把Browser CI切到根build的NODE_ENV=production条件；本地相同条件两个前端构建通过（存在既有bundle大小/依赖注释及Windows清理警告，退出码0）。b412469的PG16/18、Browser、Artifact CI全部通过；Zeabur复验已完成前端构建并进入DEPLOYING，云端日志确认Startup guard rejected JWT_SECRET，随后暂停候选。此证据只覆盖首个缺配置拒绝，正常启动及外部联调未完成。

@@ -62,3 +62,10 @@
 - 构建器警告没有SOURCE_GIT_COMMIT_SHA，会按分支拉取；本轮构建期间不推送分支。部署元数据不是严格不可变源证明，后续发布仍须解决固定源制品。
 - 正确分支构建已通过root npm install，没有重现EALLOWREMOTE；随后npm run build因vite:not found退出127。原因：NODE_ENV=production使前端npm install默认跳过devDependencies，而Vite属于构建依赖。
 - 修复：根build改为两前端npm ci --include=dev，使用锁文件并显式包含构建依赖。Browser CI改用NODE_ENV=production执行根build，覆盖实际触发条件。此变更不降低应用运行模式，不填假外部凭据。
+
+- b412469 CI：Runtime 34693760154（PG16/18），Browser 34693760020，Artifact 34693759966全部通过；Browser实际执行NODE_ENV=production的根build。
+- 平台redeployService在gitTrigger=null时拒绝（CANNOT_REDEPLOY_INPLACE）。本轮仅对预发布candidate短暂设置TriggerInput={repoID:1117361465,branchName:codex/staging-startup-guards}，手动重建后立即置null；TriggerInput不接受provider字段。新部署6aa545da7a2a029fbe0d2af9，实际SHA=b4124699f7c3acc979a35105595ec28bda017db0。生产trigger未变。
+
+- 最终云端复验：b412469镜像构建及上传完成，容器成功拉取并启动该镜像；服务日志明确Error: Startup guard rejected JWT_SECRET，栈为validateStartupEnvironment→preflightStartup→startRuntimeInternal。候选故意未配置JWT/DB/外部凭据，证据仅证明第一道缺配置保护生效，不能扩展为全部真实集成通过。
+- runtimeLogs按deploymentID过滤没有返回应用日志，去掉该过滤、限定新service/environment后取得日志；查询差异需记录，不能以空日志推断无错误。
+- 已调用suspendService=true停止重启循环；候选仍无公开业务入口、没有合成数据导入。后续按staging-handoff.md配置真实依赖后恢复，并验证正常启动。
