@@ -1,8 +1,5 @@
 import api from './index'
 
-// 开发者密钥登录（boss 级）
-export const devLogin = (key) => api.post('/api/auth/dev-login', { key })
-
 // 发送短信验证码
 export const sendSmsCode = (phone) => api.post('/api/auth/sms/send', { phone })
 

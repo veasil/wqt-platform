@@ -1,11 +1,6 @@
 import bcrypt from "bcryptjs";
 import { makePgApi, createPool } from "./sql-pg.js";
-
-// 主库连接：优先 DATABASE_URL（Zeabur 注入），兼容旧 PG_* 拼装
-const CONN =
-  process.env.DATABASE_URL ||
-  process.env.PG_MAIN_URL ||
-  "postgres://postgres:postgres@localhost:5432/wqt";
+import { migrateSessionOwnership } from "./db/migrations/session-ownership.js";
 
 let pool;
 let api;
@@ -13,8 +8,12 @@ let api;
 // 毫秒时间戳默认值（替代 sqlite 的 strftime('%s','now')*1000）
 const NOW_MS = "(extract(epoch from now())*1000)::bigint";
 
-export async function initDb() {
-  pool = createPool(CONN);
+export async function initDb({ connectionString } = {}) {
+  if (pool) throw new Error("Main database is already initialized; close it before restarting.");
+  // Resolve after the entry point has loaded its environment, not during import.
+  const conn = connectionString || process.env.DATABASE_URL || process.env.PG_MAIN_URL ||
+    "postgres://postgres:postgres@localhost:5432/wqt";
+  pool = createPool(conn);
   api = makePgApi(pool);
 
   await dbRun(`
@@ -195,7 +194,6 @@ export async function initDb() {
 
   // 预设默认配置 (Seed)
   const defaults = [
-    ["DEV_KEY", "sj0127wqt", "开发者登录密钥（boss 级别）"],
     ["operator_permissions", "{}", "各运营账号权限配置 {user_id: [modules]}"],
     ["DEFAULT_GAME_TIME", "5000", "游戏默认倒计时时长（秒）"],
     ["GAME_MODES", JSON.stringify([
@@ -223,7 +221,34 @@ export async function initDb() {
     }
   }
 
+  await withTransaction(migrateSessionOwnership);
   console.log('✅ Main database initialized (PostgreSQL)');
+}
+
+export async function closeDb() {
+  const ownedPool = pool;
+  pool = undefined;
+  api = undefined;
+  if (ownedPool) await ownedPool.end();
+}
+
+// All statements in a transaction must use this single checked-out connection.
+export async function withTransaction(work) {
+  if (!pool) throw new Error("Main database is not initialized");
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await work(makePgApi(client, { retryReads: false }));
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    try { await client.query("ROLLBACK"); } catch (rollbackError) {
+      error.rollbackError = rollbackError;
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function getSystemSetting(key, defaultValue = null) {

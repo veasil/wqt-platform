@@ -2,7 +2,7 @@
 // 对应 docs/MIGRATION_PLAYBOOK.md 的接口缺口矩阵 G1~G15。
 import { Router } from "express";
 import bcrypt from "bcryptjs";
-import { dbGet, dbAll, dbRun } from "../db.js";
+import { dbGet, dbAll, dbRun, withTransaction } from "../db.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { requireRole } from "../middleware/rbac.js";
 import { encryptVal, decryptVal } from "../config.js";
@@ -113,16 +113,20 @@ router.put("/api/admin/users/:id", boss, async (req, res) => {
 // ───────────────────────────── G5 删用户（级联）─────────────────────────────
 router.delete("/api/admin/users/:id", boss, async (req, res) => {
   try {
-    const user = await dbGet("SELECT id FROM users WHERE id = ?", [req.params.id]);
-    if (!user) return res.status(404).json({ error: "用户不存在" });
-    const uid = req.params.id;
-    await dbRun("DELETE FROM game_events WHERE session_id IN (SELECT id FROM game_sessions WHERE user_id = ?)", [uid]);
-    await dbRun("DELETE FROM game_sessions WHERE user_id = ?", [uid]);
-    // 这些表可能不存在于所有环境，逐个容错
-    for (const t of ["user_feedback", "watcher_level_applications", "watcher_level_logs", "user_sessions"]) {
-      try { await dbRun(`DELETE FROM ${t} WHERE user_id = ?`, [uid]); } catch { /* 表不存在则忽略 */ }
-    }
-    await dbRun("DELETE FROM users WHERE id = ?", [uid]);
+    const result = await withTransaction(async tx => {
+      const user = await tx.get("SELECT id FROM users WHERE id = ? FOR UPDATE", [req.params.id]);
+      if (!user) return 404;
+      if (await tx.get("SELECT id FROM game_sessions WHERE user_id = ? LIMIT 1", [user.id])) return 409;
+      if (await tx.get("SELECT id FROM organizations WHERE owner_user_id = ? LIMIT 1", [user.id])) return 409;
+      for (const table of ["user_feedback", "watcher_level_applications", "watcher_level_logs", "user_sessions"]) {
+        const exists = await tx.get("SELECT to_regclass(?) AS name", [table]);
+        if (exists.name) await tx.run(`DELETE FROM ${table} WHERE user_id = ?`, [user.id]);
+      }
+      await tx.run("DELETE FROM users WHERE id = ?", [user.id]);
+      return 200;
+    });
+    if (result === 404) return res.status(404).json({ error: "用户不存在" });
+    if (result === 409) return res.status(409).json({ error: "账号关联历史场次或组织，不能通过删除账号级联删除历史数据" });
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -284,10 +288,17 @@ router.put("/api/admin/sessions/:id/status", boss, async (req, res) => {
 
 router.delete("/api/admin/sessions/:id", boss, async (req, res) => {
   try {
-    const session = await dbGet("SELECT id FROM game_sessions WHERE id = ?", [req.params.id]);
-    if (!session) return res.status(404).json({ error: "场次不存在" });
-    await dbRun("DELETE FROM game_events WHERE session_id = ?", [req.params.id]);
-    await dbRun("DELETE FROM game_sessions WHERE id = ?", [req.params.id]);
+    const outcome = await withTransaction(async tx => {
+      const session = await tx.get("SELECT id FROM game_sessions WHERE id = ? FOR UPDATE", [req.params.id]);
+      if (!session) return 404;
+      if (await tx.get("SELECT id FROM session_files WHERE session_id = ? LIMIT 1", [session.id])) return 409;
+      await tx.run("DELETE FROM activity_sessions WHERE session_id = ?", [session.id]);
+      await tx.run("DELETE FROM game_events WHERE session_id = ?", [session.id]);
+      await tx.run("DELETE FROM game_sessions WHERE id = ?", [session.id]);
+      return 200;
+    });
+    if (outcome === 404) return res.status(404).json({ error: "场次不存在" });
+    if (outcome === 409) return res.status(409).json({ error: "场次关联私有文件，需按独立数据保留流程处理" });
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

@@ -44,6 +44,9 @@
     const headers = { "Content-Type": "application/json" };
     const token = getToken();
     if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (body && (path === "api/llm/story" || path === "api/llm/image" || path === "api/upload/report") && !body.sessionId) {
+      body = { ...body, sessionId: getSessionId() };
+    }
     const res = await fetch(path, {
       method,
       headers,
@@ -791,10 +794,10 @@
     }
   }
 
-  async function uploadReport(html, markdown) {
+  async function uploadReport(html, markdown, sessionId) {
     return api("api/upload/report", {
       method: "POST",
-      body: { html, markdown }
+      body: { html, markdown, sessionId }
     });
   }
 
@@ -812,24 +815,36 @@
         <div style="background:linear-gradient(120deg,#fff6da,#ffe9b0);border:1px dashed #f0b400;border-radius:10px;padding:10px 14px;font-weight:800;color:#a05a00;text-align:center;">${summary}</div>
         ${experienced ? `<p style="margin:12px 0;color:#444;">${experienced}</p>` : ""}
         ${takeaway ? `<div style="margin:8px 0;background:#eef3ff;border-radius:8px;padding:8px 12px;color:#2455c6;font-weight:700;">📣 ${takeaway}</div>` : ""}
-        <p style="color:#777;font-size:13px;margin-top:10px;">打开报告后可<strong>一键导出为图片</strong>，得到一张可分享的宣传海报。</p>
+        <p style="color:#777;font-size:13px;margin-top:10px;">下载报告文件后可<strong>一键导出为图片</strong>，得到一张可分享的宣传海报。保存链接需登录下载。</p>
         <div style="display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap;">
           <button id="review-open-report" style="padding: 10px 18px; background: #2455c6; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight:700;">
-            📄 查看 / 导出海报报告
+            📄 下载 / 导出海报报告
           </button>
         </div>
       </div>
     `;
 
     const openBtn = document.getElementById("review-open-report");
-    if (openBtn) openBtn.onclick = () => window.open(reportUrl, "_blank");
+    if (openBtn) openBtn.onclick = async () => {
+      if (reportUrl.startsWith("blob:")) {
+        const a = document.createElement("a");
+        a.href = reportUrl;
+        a.download = `game_review_${new Date().toISOString().slice(0, 10)}.html`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(reportUrl), 0);
+        return;
+      }
+      const { downloadSessionFile } = await import("/session-files.js");
+      await downloadSessionFile(reportUrl, { filename: `game_review_${new Date().toISOString().slice(0, 10)}.html` });
+    };
   }
 
-  async function callLlm(prompt, { maxTokens = 1200, temperature = 0.7 } = {}) {
+  async function callLlm(prompt, { maxTokens = 1200, temperature = 0.7, sessionId = getSessionId() } = {}) {
     const ret = await api("api/llm/story", {
       method: "POST",
       body: {
         prompt,
+        sessionId,
         max_tokens: maxTokens,
         temperature
       }
@@ -842,9 +857,9 @@
 
   // 调用文生图，返回 data URI；失败/未配置时返回空串（优雅降级，不阻断复盘）。
   // ToAPIs 会把 imageDataUri 上传为参考图，DashScope 会忽略该字段并继续文生图。
-  async function callImage(prompt, { size = "1024*1024", referenceImageDataUri = "" } = {}) {
+  async function callImage(prompt, { size = "1024*1024", referenceImageDataUri = "", sessionId = getSessionId() } = {}) {
     try {
-      const body = { prompt, size };
+      const body = { prompt, size, sessionId };
       if (referenceImageDataUri && referenceImageDataUri.length <= MAX_REFERENCE_IMAGE_DATA_URI_LENGTH) {
         body.imageDataUri = referenceImageDataUri;
       }
@@ -932,6 +947,7 @@
 
     status("正在分析本轮闯关数据…", 12);
     const structuredText = await callLlm(buildStructuredPrompt(reviewData), {
+      sessionId: reviewData.session.id,
       maxTokens: 7000,
       temperature: 0.4
     });
@@ -959,6 +975,7 @@
       scenes.map((sc, index) => {
         const reference = ipReferences.length ? ipReferences[index % ipReferences.length] : "";
         return callImage(buildScenePrompt(sc, structured), {
+          sessionId: reviewData.session.id,
           size: "768*768",
           referenceImageDataUri: reference
         });
@@ -1048,7 +1065,7 @@
       renderProgress(target, "正在上传复盘报告…", 94);
       let reportUrl = "";
       try {
-        const uploadRes = await uploadReport(reportHtml, null);
+        const uploadRes = await uploadReport(reportHtml, null, session.id);
         if (uploadRes && uploadRes.ok) {
           reportUrl = uploadRes.htmlUrl;
           console.log("报告上传成功:", uploadRes);

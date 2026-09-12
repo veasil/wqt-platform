@@ -647,10 +647,17 @@
                                 <span class="file-type ${typeClass}">${typeLabel}</span>
                                 <span style="margin-left:8px;font-size:13px;color:#555;">${formatTime(f.lastModified)}</span>
                             </div>
-                            <a href="${f.url}" target="_blank">查看</a>
+                            <button type="button" class="file-download" data-file-url="${String(f.url).replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" data-file-type="${f.type}">下载（需登录）</button>
                         </div>
                     `;
                 }).join('');
+                el.querySelectorAll('.file-download').forEach(button => {
+                    button.onclick = async () => {
+                        const { downloadSessionFile } = await import('/session-files.js');
+                        const extension = button.dataset.fileType === 'audio' ? 'webm' : button.dataset.fileType === 'report_md' ? 'md' : 'html';
+                        await downloadSessionFile(button.dataset.fileUrl, { filename: `会话文件.${extension}` });
+                    };
+                });
             } catch (e) {
                 el.innerHTML = `<div class="msg error">${e.message}</div>`;
             }

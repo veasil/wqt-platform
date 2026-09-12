@@ -217,12 +217,6 @@
             <div id="auth-modal-body">
                 <h3 style="margin-top:0;">登录后开始游戏</h3>
 
-                <div class="auth-tabs">
-                    <button class="auth-tab active" id="tab-direct">账号登录</button>
-                    <button class="auth-tab" id="tab-dev"
-                        style="background: #f0f0f0; font-size: 12px; padding: 6px 8px;">开发者</button>
-                </div>
-
                 <!-- 三要素登录：手机号 + 密码 + 验证码（单设备） -->
                 <div id="panel-direct">
                     <form id="login-form" class="auth-form">
@@ -249,22 +243,6 @@
                            style="color: #4a9eff; font-size: 13px; text-decoration: none; font-weight: 500;">
                            忘记密码？
                         </a>
-                    </div>
-                </div>
-
-                <!-- 开发者模式 -->
-                <div id="panel-dev" class="hidden">
-                    <div class="auth-form">
-                        <div class="auth-hint" style="margin-bottom: 15px; color: #666;">
-                            <strong>开发者模式</strong><br />
-                            输入开发者密钥以绕过验证。仅用于开发测试。
-                        </div>
-                        <input id="dev-key" type="password" placeholder="请输入开发者密钥" style="margin-bottom: 10px;" />
-                        <button id="dev-login-btn" class="auth-btn"
-                            style="width: 100%; background: #28a745; color: white;">验证并登录</button>
-                        <div class="auth-hint" style="margin-top: 10px; font-size: 11px; opacity: 0.7;">
-                            注意：此模式仅在开发环境使用，需要正确的开发者密钥。
-                        </div>
                     </div>
                 </div>
 
@@ -834,12 +812,6 @@
                 alert('已退出登录');
             };
 
-            // 登录 tab 切换（账号登录 / 开发者）
-            const tabDirect = document.getElementById('tab-direct');
-            const tabDev = document.getElementById('tab-dev');
-            const panelDirect = document.getElementById('panel-direct');
-            const panelDev = document.getElementById('panel-dev');
-
             const loginForm = document.getElementById('login-form');
             const phoneInput = document.getElementById('login-phone');
             const passwordInput = document.getElementById('login-password');
@@ -849,21 +821,6 @@
             const loginSubmitBtn = document.getElementById('login-submit-btn');
             let smsCountdownTimer = null;
             let smsCountdownLeft = 0;
-
-            function activateTab(which) {
-                [tabDirect, tabDev].forEach(tab => tab.classList.remove('active'));
-                [panelDirect, panelDev].forEach(panel => panel.classList.add('hidden'));
-
-                if (which === 'dev') {
-                    tabDev.classList.add('active');
-                    panelDev.classList.remove('hidden');
-                } else {
-                    tabDirect.classList.add('active');
-                    panelDirect.classList.remove('hidden');
-                }
-            }
-            tabDirect.onclick = () => activateTab('direct');
-            tabDev.onclick = () => activateTab('dev');
 
             function updateSmsCountdownUI() {
                 if (smsCountdownLeft > 0) {
@@ -938,39 +895,6 @@
                 } finally {
                     loginSubmitBtn.disabled = false;
                     loginSubmitBtn.textContent = '登录';
-                }
-            };
-
-            // 开发者模式登录
-            const devKeyInput = document.getElementById('dev-key');
-            const devLoginBtn = document.getElementById('dev-login-btn');
-
-            devLoginBtn.onclick = async () => {
-                const key = devKeyInput.value.trim();
-                if (!key) return;
-
-                devLoginBtn.disabled = true;
-                devLoginBtn.textContent = '验证中...';
-
-                try {
-                    // 调用后端验证接口，不再在前端硬编码 Check
-                    const ret = await api('api/auth/dev-login', {
-                        method: 'POST',
-                        body: { key }
-                    });
-
-                    authState.token = ret.token;
-                    authState.user = ret.user;
-                    localStorage.setItem('WQT_AUTH_TOKEN', authState.token);
-                    saveEnvMarkers();
-                    setAuthUI(true);
-                    closeAuthModal();
-                    alert('开发者模式登录成功！');
-                } catch (err) {
-                    alert('登录失败：' + err.message);
-                } finally {
-                    devLoginBtn.disabled = false;
-                    devLoginBtn.textContent = '验证并登录';
                 }
             };
 

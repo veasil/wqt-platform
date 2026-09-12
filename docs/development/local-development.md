@@ -71,13 +71,21 @@ npm --prefix admin-web run dev
 
 `.env`、密钥、生产数据和 `_migration/` 导出不提交。外部功能尚未配置时，服务启动成功不等于短信、上传和 AI 已可用。
 
-## 验证现状
+## 自动验证
 
-制品工具可独立运行 `npm run test:artifacts` 和 `npm run check:artifacts`，不安装业务依赖、不启动数据库；这两项也是 PR 的 Artifact checks。新变更使用 `npm run change:new -- WQT-002 short-topic` 创建草案。
+`npm run lint` 检查模块入口与新提取代码的未定义变量；`npm run test:runtime` 覆盖导入副作用、路由顺序、运行生命周期与租户边界。PG 用例必须显式提供 `WQT_TEST_PG_ADMIN_URL`，它指向专用测试 PostgreSQL 实例中的管理员库，并具有创建/删除临时库权限。
+
+测试控制器每次创建随机独占数据库，主库与卡牌库都指向该库；业务子进程使用环境白名单，退出后仅删除自己登记创建的库。不能把生产连接填入这个变量。未提供变量时 PG 用例标记 skipped，不能据此声称集成通过。PR 的 Runtime isolation 使用一次性 PostgreSQL 16 完整运行，外部 OSS/短信使用替身。
+
+`node scripts/audit-session-ownership.mjs` 是独立只读盘点入口，仅接受显式 `WQT_MIGRATION_DATABASE_URL`，不加载 .env、不回退业务默认连接；输出聚合计数，不能自动修复或回填未知归属。
+
+## 验证限制
+
+制品工具可独立运行 `npm run test:artifacts` 和 `npm run check:artifacts`，不安装业务依赖、不启动数据库；这两项也是 PR 的 Artifact checks。新变更使用 `npm run change:new -- WQT-003 short-topic` 创建草案。
 
 `npm run build` 构建两个 Vue 应用，不验证后端权限或数据正确性。
 
-旧 `test/bench/run.mjs` 未纳入 Git；已跟踪的 `tests/auth.bench.mjs` 也仍依赖临时 SQLite 路径并继承环境变量。主库现在使用 PostgreSQL，这两套脚本都不能保证测试隔离。完成 PG 测试库适配前，不直接运行它们。
+旧 `test/bench/run.mjs` 未纳入 Git；已跟踪的 `tests/auth.bench.mjs` 也仍依赖临时 SQLite 路径并继承环境变量。主库现在使用 PostgreSQL，这两套脚本都不能保证测试隔离。新 PG 测试入口不改变旧脚本的风险，不直接运行它们。
 
 启动服务会修改连接的数据库。测试必须显式指定独立 PG 库与外部服务替身，再验证登录、开局、事件、结算、复盘和组织统计。容量与恢复验收遵循 [vNext 基线](../vnext-requirements-and-acceptance.md)。
 
@@ -85,6 +93,6 @@ npm --prefix admin-web run dev
 
 仓库原部署说明记录为 Zeabur Node 服务与 PostgreSQL；本轮未核实线上版本。构建入口为 `npm run build`，环境变量已注入时运行 `npm start`。
 
-`server.js` 的初始化不是完整存量迁移机制。发布记录需包含提交、迁移、备份、验证结果和回退版本。SQLite 导入脚本 `scripts/migrate_sqlite_to_pg.mjs` 是历史数据迁移工具，不是日常启动步骤。
+`src/runtime.js` 调用主库初始化与增量迁移，不等于生产迁移已经获得批准。发布记录需包含提交、迁移、备份、验证结果和回退版本。SQLite 导入脚本 `scripts/migrate_sqlite_to_pg.mjs` 是历史数据迁移工具，不是日常启动步骤。
 
 [旧部署指南](../DEPLOY.md)描述 Screen 双环境，[旧后台迁移手册](../MIGRATION_PLAYBOOK.md)描述 Streamlit 迁移；二者仅作历史参考，不能直接用于当前生产操作。

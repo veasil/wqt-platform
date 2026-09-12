@@ -1,14 +1,16 @@
 # 仓库目录规范
 
-状态：文档与协作入口已整理；运行时代码的目标目录尚未迁移。目标沿用单体与现有三个前端，不引入新的 workspace 构建系统。
+状态：运行入口和主要路由已按平台、游戏、媒体模块提取，保留既有认证与管理基础模块。目标沿用单体与现有三个前端，不引入新的 workspace 构建系统。
 
 ## 当前结构与问题
 
-`server.js` 同时包含启动、初始化、路由和定时清理；`src/routes`、`services` 只拆出部分功能，业务定位仍需跨文件搜索。根目录还保留旧后台和维护脚本。目录清晰度必须通过逐步迁移解决，不能只在 README 展示目标树。
+`server.js` 只负责加载环境并调用 `src/runtime.js`；`src/app.js` 按原顺序注册业务模块。场次的归属、事件、结算与活动关联已移入独立用例；既有 `src/routes`、`services`、`middleware` 保留认证和管理基础实现。根目录还保留旧后台和维护脚本。目录清晰度必须通过逐步迁移解决，不能只在 README 展示目标树。
 
 | 当前位置 | 当前职责 |
 |---|---|
-| `server.js` | 进程、应用、初始化以及多数业务入口 |
+| `server.js`、`src/runtime.js` | 启动调用、初始化、监听与关闭 |
+| `src/app.js` | 中间件、模块路由、静态应用装配 |
+| `src/platform/`、`game/`、`integrations/` | 按业务定位的路由与必要用例 |
 | `src/routes/`、`middleware/`、`services/` | 已提取的认证、管理、权限及服务 |
 | `src/db.js`、`cards-db.js`、`sql-pg.js` | 数据库结构、工厂和 SQL 访问 |
 | `public/` | 玩家端 |
@@ -20,12 +22,13 @@
 
 ## 后端目标结构
 
-以下目录随真实模块提取建立，不预先填充空壳。具体模块边界与依赖以[应用架构](../wqt-application-architecture.md)为准。
+下图描述职责方向；现已建立的实际目录见 README，尚未搬迁的基础模块保持旧路径，不预先填充空壳。具体模块边界与依赖以[应用架构](../wqt-application-architecture.md)为准。
 
 ```text
 server.js                       # 进程生命周期与启动调用
 src/
 ├── app.js                      # HTTP 中间件、路由与静态应用装配
+├── runtime.js                  # 初始化、监听、定时任务与关闭
 ├── platform/
 │   ├── identity/               # 账号、登录、密码、设备会话
 │   ├── organizations/          # 组织、成员、邀请码、组织期限和名额
