@@ -81,7 +81,7 @@ npm --prefix admin-web run dev
 
 ## 验证限制
 
-制品工具可独立运行 `npm run test:artifacts` 和 `npm run check:artifacts`，不安装业务依赖、不启动数据库；这两项也是 PR 的 Artifact checks。新变更使用 `npm run change:new -- WQT-003 short-topic` 创建草案。
+制品工具可独立运行 `npm run test:artifacts` 和 `npm run check:artifacts`，不安装业务依赖、不启动数据库；这两项也是 PR 的 Artifact checks。新变更使用 `npm run change:new -- WQT-004 short-topic` 创建草案。
 
 `npm run build` 构建两个 Vue 应用，不验证后端权限或数据正确性。
 
