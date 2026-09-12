@@ -1,7 +1,7 @@
 {
-  "flow": "login → activity → config → game → picker → choice → pause/resume → end",
+  "flow": "login → direct game → setup → three rail panels → card → watch edits/export → six account tabs → same session → end → new session",
   "pageErrors": [],
   "externalRequests": [],
-  "viewport": "1440x900",
-  "visualAcceptance": "pending; see README known issues"
+  "viewport": "1440x900 and 390x844",
+  "visualAcceptance": "spec layout evidence captured; real services remain unconnected"
 }
