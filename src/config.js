@@ -50,8 +50,9 @@ export function encryptVal(value) {
 
 // 从数据库加载 system_settings 并合并到 config（数据库值优先于 process.env）。
 // 必须在 initDb() 之后调用。
-export async function loadConfig() {
+export async function loadConfig({ validate } = {}) {
   const dbSettings = await getAllSettings();
+  if (validate) validate(dbSettings.map(s => ({ ...s, value: decryptVal(s.value) })));
   for (const key of Object.keys(config)) delete config[key];
   Object.assign(config, process.env);
 
