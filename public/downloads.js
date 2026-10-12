@@ -25,8 +25,10 @@
           try {
             const response = await request(`/api/downloads/${encodeURIComponent(row.id)}/file`);
             const blob = await response.blob(), url = URL.createObjectURL(blob), link = document.createElement('a');
-            link.href = url; link.download = row.filename; document.body.append(link); link.click(); link.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 60000);
+            link.href = url; link.download = row.filename; link.hidden = true; document.body.append(link); link.click();
+            // Chromium can resolve the suggested filename after click returns.
+            // Keep the anchor and blob alive until download navigation has started.
+            setTimeout(() => { link.remove(); URL.revokeObjectURL(url); }, 60000);
             status.textContent = '资料已接收，请查看浏览器下载列表。';
           } catch (error) { status.textContent = error.message; }
           finally { button.disabled = false; }
