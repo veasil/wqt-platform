@@ -3,7 +3,7 @@
 - 状态：本地实现完成，待验收与生产联调
 - 需求来源：2026-10-12 用户聊天：云端桌游资料更新、登录且权益有效才能查看下载、两个玩家入口、平台上传、下载审计。
 - 负责人：本次执行代理；业务验收人：需求提出方
-- GitHub：尚未创建
+- GitHub：[草稿 PR #7](https://github.com/veasil/wqt-platform/pull/7)；实现提交 a17995e
 - 版本：独立工作区 C:/ArdenDev/worktrees/wqt-download-center；分支 codex/download-center-production；基于生产 origin/main 352edf1（2026-10-12 fetch 核对）。
 
 ## 目标与范围
@@ -50,7 +50,7 @@
 
 
 ## 验收与交付
-未业务验收、未提交、未发布。
+已提交实现 a17995e，草稿 PR #7；未业务验收、未合并、未发布。
 
 ## 2026-10-12 上线就绪复核
 
