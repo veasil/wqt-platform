@@ -10,6 +10,7 @@ async function fixture(options = {}) {
   const events = [], objects = [], deletes = [], rows = [];
   let reads = 0;
   const release = { id: 'current', title: '资料', version: '1', filename: 'rules.zip', size: 3, sha256: 'hash', object_key: 'private/key', created_at: 1 };
+  if(options.content)release.size=options.content.length;
   const run = async (sql, args) => {
     if (options.auditFailure && sql.includes('download_events')) throw new Error('audit unavailable');
     if (sql.includes('download_events')) events.push({ request: args[1], release: args[2], user: args[3], organization: args[4], event: args[5] });
@@ -28,7 +29,11 @@ async function fixture(options = {}) {
   const app = express();
   registerDownloadRoutes(app, { store, authenticate, boss: (req, res, next) => req.user.role === 'boss' ? next() : res.status(403).json({ error: '无权限' }),
     upload: multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }),
-    ossClient: { put: async (...args) => objects.push(args), delete: async key => deletes.push(key), getStream: async () => { reads++; if (options.ossFailure) throw new Error('OSS unavailable'); return { stream: Readable.from([options.shortStream ? 'zi' : 'zip']) }; } } });
+    ossClient: { put: async (...args) => objects.push(args), delete: async key => deletes.push(key), getStream: async () => {
+      reads++; if (options.ossFailure) throw new Error('OSS unavailable');
+      if(options.slowStream) return {stream:Readable.from((async function*(){for(let offset=0;offset<options.content.length;offset+=65536){yield options.content.subarray(offset,offset+65536);await new Promise(r=>setTimeout(r,10))}})())};
+      return { stream: Readable.from([options.content || (options.shortStream ? 'zi' : 'zip')]) };
+    } } });
   app.use((error, _req, res, _next) => { if (!res.headersSent) res.status(500).json({ error: error.message }); });
   const server = app.listen(0, '127.0.0.1'); await once(server, 'listening');
   return { events, objects, deletes, rows, reads: () => reads, release,
@@ -81,6 +86,28 @@ test('truncated storage stream cannot be audited as a complete send', async () =
     await assert.rejects(async()=>{const response=await f.request('/api/downloads/current/file','paid');await response.arrayBuffer()});
     for(let attempt=0;attempt<20 && !f.events.some(e=>e.event==='failed');attempt++)await new Promise(r=>setTimeout(r,10));
     assert.deepEqual(f.events.map(e=>e.event),['requested','failed']);
+  } finally {await f.close()}
+});
+test('four simultaneous 8 MiB downloads retain complete bytes and distinct audit requests',async()=>{
+  const content=Buffer.alloc(8*1024*1024,42),f=await fixture({content});
+  try {
+    await Promise.all(Array.from({length:4},async()=>{
+      const response=await f.request('/api/downloads/current/file','paid');assert.equal(response.status,200);
+      assert.deepEqual(Buffer.from(await response.arrayBuffer()),content);
+    }));
+    for(let i=0;i<100 && f.events.length<8;i++)await new Promise(r=>setTimeout(r,10));
+    const ids=new Set(f.events.map(event=>event.request));assert.equal(ids.size,4);
+    for(const id of ids)assert.deepEqual(f.events.filter(event=>event.request===id).map(event=>event.event),['requested','server_sent']);
+  } finally {await f.close()}
+});
+test('client cancellation records failure rather than successful send',async()=>{
+  const f=await fixture({content:Buffer.alloc(8*1024*1024,42),slowStream:true});
+  try {
+    const controller=new AbortController();
+    const response=await f.request('/api/downloads/current/file','paid',{signal:controller.signal});
+    const reader=response.body.getReader();assert.equal((await reader.read()).done,false);controller.abort();
+    for(let i=0;i<100 && !f.events.some(event=>event.event==='failed');i++)await new Promise(r=>setTimeout(r,10));
+    assert.deepEqual(f.events.map(event=>event.event),['requested','failed']);
   } finally {await f.close()}
 });
 test('platform-only upload and audit; private upload includes checksum and compensates database failure', async () => {

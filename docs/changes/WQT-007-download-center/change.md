@@ -83,3 +83,15 @@
 云端曾发现中文文件被浏览器命名为download。本机Windows/Edge及Chromium可正常下载，数据库及返回metadata的中文filename正确；保留下载锚点后Linux仍失败（运行38224376653）。根因为隔离子进程环境白名单删除了语言环境，Linux Chromium处理保存文件名时落到ASCII环境。只增加LANG/LC_ALL=C.UTF-8后云端通过（438e8cf），中文文件名及内容断言保持不变。测试凭据隔离应保留必要的非敏感运行环境。网络阻断只匹配HTTP，避免拦截浏览器管理的blob下载；下载锚点和blob延后清理。
 
 本机随机测试数据库全部清理；本次创建的专用容器已停止并自动移除。无生产数据库或真实OSS读写。最终技术状态：下载功能与可执行非OSS验证完成；真实OSS和原版认证缺陷未关闭，不能把CI通过写为生产安全放行。
+
+## 补充发布演练（2026-10-12）
+
+需求方要求继续执行；此前“不更改登录”“无测试OSS”的决定保持有效。
+
+- 完整原版server.js在白名单环境、空临时cwd、随机独占PG16主库/卡牌库启动；桌游、平台、组织静态页面均200，下载入口鉴权及无OSS失败行为与模块测试一致。原版顶层导入sqlite3，即使使用PG仍需其原生绑定；本机通过npm rebuild sqlite3安装，CI增加同一步骤，不修改生产卡牌来源。
+- 真正pg_dump自定义格式备份，再pg_restore到另一随机独占库，资料中文文件名、全部审计ID/事件、用户数量与卡牌发布记录核对通过。不是生产备份或生产恢复时间承诺。
+- 新增4个并发8MiB下载，内容逐字节一致，每请求的requested/server_sent关联独立；客户端中断只记录failed，不记录server_sent。该测试使用内存OSS与DB替身，证明传输/审计隔离，不证明生产服务50MB并发容量。
+- 本机验证：test:downloads 9通过0跳过，test:downloads:release 1通过0跳过，test:downloads:browser 1通过。专用测试库均清理，未连接生产。
+- 完整启动/备份恢复的可重复入口为npm run test:downloads:release，必须显式WQT_TEST_PG_ADMIN_URL和WQT_TEST_DOCKER_CONTAINER；检查容器所有权标签，dump/restore只针对本轮随机创建的库。CI使用其服务容器ID，标记wqt.test=download-center-release。
+
+[发布门槛](release.md)中的真实OSS和原版认证缺陷仍未关闭，本轮不改变生产发布结论。
