@@ -54,6 +54,8 @@ test('full production entry point and isolated backup/restore retain releases an
       const request=(path,token,options={})=>fetch(`http://127.0.0.1:${port}${path}`,{...options,headers:{...options.headers,...(token?{Authorization:`Bearer ${token}`}:{})}});
       assert.equal((await request('/')).status,200);assert.equal((await request('/admin/')).status,200);assert.equal((await request('/enterprise/')).status,200);
       assert.equal((await request('/api/downloads')).status,401);
+      const retired=await request('/api/auth/admin-login',null,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone:'19900000001'})});
+      assert.equal(retired.status,410);assert.equal((await retired.json()).code,'ADMIN_LOGIN_CLOSED');
       assert.deepEqual(await (await request('/api/downloads',playerToken)).json(),{releases:[]});
       assert.equal((await request('/api/admin/downloads/events',playerToken)).status,403);
       assert.equal((await request('/api/admin/downloads/events',bossToken)).status,200);

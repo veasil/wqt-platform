@@ -45,6 +45,12 @@ try {
     assert.equal(response.status,200);return (await response.json()).token;
   };
   const bossToken=await login('19900000001'),playerToken=await login('19900000002'),memberToken=await login('19900000003');
+  const sessionsBefore=await dbAll('SELECT user_id,jti FROM user_sessions ORDER BY user_id');
+  for(const phone of ['19900000001','19900000003','19900000999']) {
+    const response=await request('/api/auth/admin-login',null,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone})});
+    assert.equal(response.status,410);assert.equal((await response.json()).code,'ADMIN_LOGIN_CLOSED');
+  }
+  assert.deepEqual(await dbAll('SELECT user_id,jti FROM user_sessions ORDER BY user_id'),sessionsBefore);
   await dbRun("UPDATE users SET role='operator' WHERE id=?",[boss]);
   assert.equal((await request('/api/admin/downloads/events',bossToken)).status,403);
   await dbRun("UPDATE users SET role='boss' WHERE id=?",[boss]);

@@ -108,33 +108,13 @@ router.post("/api/auth/dev-login", async (req, res) => {
   res.json({ user: { id: user.id, username: user.username, role: user.role, isProfileComplete: true }, token });
 });
 
-// ======== 管理后台手机号登录（仅 boss/operator，无需验证码）========
-router.post("/api/auth/admin-login", async (req, res) => {
-  const phone = normalizePhone(req.body?.phone || "");
-  if (!phone) return res.status(400).json({ error: "缺少手机号" });
-
-  const user = await dbGet(
-    "SELECT id, phone, username, guardian_name, role, enterprise_id FROM users WHERE phone = ?",
-    [phone]
-  );
-  if (!user) return res.status(404).json({ error: "用户不存在" });
-
-  const allowedRoles = ["boss", "operator"];
-  if (!allowedRoles.includes(user.role)) {
-    return res.status(403).json({ error: "⛔ 仅 boss 和运营账号可登录管理后台" });
-  }
-
-  const token = await issueSession(req, { id: user.id, username: user.phone || user.username, role: user.role, enterprise_id: user.enterprise_id });
-  res.json({
-    user: {
-      id: user.id,
-      username: user.username || user.phone,
-      phone: user.phone,
-      guardianName: user.guardian_name,
-      role: user.role,
-      isProfileComplete: true,
-    },
-    token,
+// WQT-007: retire the passwordless admin bypass for every HTTP method.
+// Current Vue admin UI already uses password + SMS through /api/auth/login.
+router.all("/api/auth/admin-login", (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.status(410).json({
+    error: "此登录方式已关闭，请使用密码和短信验证码登录",
+    code: "ADMIN_LOGIN_CLOSED",
   });
 });
 
