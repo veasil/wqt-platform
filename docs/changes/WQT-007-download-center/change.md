@@ -75,3 +75,11 @@
 平台与组织两个前端构建均通过，保留已有大chunk警告。新增CI使用一次性PG服务，构建平台后跑真实PG/浏览器及静态契约。具体发布检查及回退见[release.md](release.md)。旧的“缺测试PG”说明是当时历史状态，本节更新了验证进展；真实OSS和生产运维验证仍未完成。
 
 原版 /api/auth/admin-login 只凭手机号签发管理员令牌，是本次审查发现且按用户决定未修的认证缺陷。已有前端使用密码及验证码不消除该旁路。此缺陷与真实OSS待验仍阻止本次安全放行；用户决定暂不修改不等于已接受生产发布风险。
+
+## 云端验证收尾
+
+[Download center contracts](https://github.com/veasil/wqt-platform/actions/runs/38224457997) 已成功，验证提交 438e8cf，Ubuntu/Node22/专用PG16/Chromium。7项专项全部通过、0跳过；另1项静态浏览器契约通过；平台构建通过。草稿[PR #7](https://github.com/veasil/wqt-platform/pull/7) 未合并、未部署。
+
+云端曾发现中文文件被浏览器命名为download。本机Windows/Edge及Chromium可正常下载，数据库及返回metadata的中文filename正确；保留下载锚点后Linux仍失败（运行38224376653）。根因为隔离子进程环境白名单删除了语言环境，Linux Chromium处理保存文件名时落到ASCII环境。只增加LANG/LC_ALL=C.UTF-8后云端通过（438e8cf），中文文件名及内容断言保持不变。测试凭据隔离应保留必要的非敏感运行环境。网络阻断只匹配HTTP，避免拦截浏览器管理的blob下载；下载锚点和blob延后清理。
+
+本机随机测试数据库全部清理；本次创建的专用容器已停止并自动移除。无生产数据库或真实OSS读写。最终技术状态：下载功能与可执行非OSS验证完成；真实OSS和原版认证缺陷未关闭，不能把CI通过写为生产安全放行。
