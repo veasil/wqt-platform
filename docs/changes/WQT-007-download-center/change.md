@@ -95,3 +95,13 @@
 - 完整启动/备份恢复的可重复入口为npm run test:downloads:release，必须显式WQT_TEST_PG_ADMIN_URL和WQT_TEST_DOCKER_CONTAINER；检查容器所有权标签，dump/restore只针对本轮随机创建的库。CI使用其服务容器ID，标记wqt.test=download-center-release。
 
 [发布门槛](release.md)中的真实OSS和原版认证缺陷仍未关闭，本轮不改变生产发布结论。
+
+## 经授权的真实 OSS 验证（2026-10-12）
+
+用户提示已有OSS key，核查现有.env与.env.staging均完整且使用同一组凭据和同一桶，不能将文件名当作独立测试存储。仅输出凭据完整性，不输出值。只读确认凭据有效，桶ACL为public-read。
+
+用户明确授权：“允许执行这个临时对象验证”，范围为现有桶download-center/verification/随机路径的约64字节私有合成对象，验证后只删除该对象，不改桶设置/现有文件/数据库。
+
+执行scripts/verify-download-oss.mjs，对象0646f739-6dcd-4756-a662-b199bb720af5：private ACL核对通过，签名凭据读取内容逐字节一致，去除签名后的匿名GET为403。删除精确对象（若返回版本ID则删除指定版本），随后凭据HEAD返回404。未枚举或改动其他对象，未连接生产数据库。
+
+真实OSS基础权限与读写门槛已有证据；公开读桶不意味着显式private对象公开，本次实测证明该对象匿名读取被拒绝。未测生产完整HTTP/数据库/OSS链路、50MB容量或外部对象备份恢复，不能扩大本次证据含义。原版管理员手机号认证旁路仍未关闭，继续不安全放行生产。历史“无OSS待验”的记录保留，本节是最新状态。

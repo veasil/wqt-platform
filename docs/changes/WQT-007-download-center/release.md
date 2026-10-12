@@ -46,3 +46,9 @@
 npm run test:downloads:release要求专用WQT_TEST_PG_ADMIN_URL与WQT_TEST_DOCKER_CONTAINER。仅接受本次指定标签的测试容器，随机创建源库和恢复库，空目录/环境白名单启动完整服务；退出后停止子进程并删除登记的测试库。原生sqlite3需安装完整，即使卡牌选择PG；CI显式rebuild后演练。
 
 恢复演练核对资料、审计、用户及卡牌，不包含真实OSS对象恢复，不代表已验证生产备份。认证缺陷及OSS门槛保持不变。
+
+## 真实 OSS 基础门槛更新
+
+2026-10-12需求方明确授权单个临时私有合成对象验证。现有凭据可上传/带凭据读取，对象ACL为private、内容一致、匿名GET为403；精确删除并HEAD核对404。对应证据见change.md和scripts/verify-download-oss.mjs。没有改桶public-read设置或任何既有对象，没有数据库读写。
+
+上述验证补齐真实对象存储的基础权限门槛；生产完整HTTP链路、容量及备份仍须发布负责人核实。原版管理员认证缺陷保持未修，不因OSS通过而放行生产。
