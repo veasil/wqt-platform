@@ -19,6 +19,9 @@ test('real production authentication, downloads, audit and migrations in an owne
       await admin.connect();await admin.query(`CREATE DATABASE "${database}"`);created=true;
       const url=new URL(process.env.WQT_TEST_PG_ADMIN_URL);url.pathname=`/${database}`;
       const env={};for(const key of ['PATH','Path','SystemRoot','WINDIR','TEMP','TMP','PATHEXT','ComSpec']) if(process.env[key]) env[key]=process.env[key];
+      // Chromium converts download filenames using the OS locale on Linux.
+      // Credential isolation must not turn the browser into an ASCII-only process.
+      if(process.platform==='linux') Object.assign(env,{LANG:'C.UTF-8',LC_ALL:'C.UTF-8'});
       Object.assign(env,{NODE_ENV:'test',DATABASE_URL:url.href,JWT_SECRET:'synthetic-download-integration-secret',SERVER_ENV:'test',BMOB_APP_ID:'',BMOB_REST_KEY:''});
       for(const key of ['WQT_DOWNLOAD_PG_BROWSER','WQT_BROWSER_CHANNEL','WQT_DOWNLOAD_PREVIEW_DIR']) if(process.env[key]) env[key]=process.env[key];
       const child=spawn(process.execPath,[fileURLToPath(new URL('./scenarios/downloads-pg.mjs',import.meta.url))],{cwd,env,windowsHide:true,stdio:['ignore','pipe','pipe']});
