@@ -12,6 +12,7 @@ const routes = [
       { path: 'organizations', name: 'Organizations', component: () => import('../views/Organizations.vue') },
       { path: 'cards', name: 'Cards', component: () => import('../views/Cards.vue') },
       { path: 'activities', name: 'Activities', component: () => import('../views/Activities.vue') },
+      { path: 'downloads', name: 'Downloads', component: () => import('../views/Downloads.vue') },
       { path: 'oss', name: 'Oss', component: () => import('../views/Oss.vue') },
       { path: 'analysis', name: 'GameAnalysis', component: () => import('../views/GameAnalysis.vue') },
       { path: 'audit', name: 'DataAudit', component: () => import('../views/DataAudit.vue') },

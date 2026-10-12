@@ -49,6 +49,7 @@ const menus = [
   { name: 'Organizations', title: '组织管理', icon: markRaw(OfficeBuilding) },
   { name: 'Cards', title: '卡牌管理', icon: markRaw(Postcard) },
   { name: 'Activities', title: '活动管理', icon: markRaw(Calendar) },
+  { name: 'Downloads', title: '下载中心', icon: markRaw(Folder) },
   { name: 'Oss', title: 'OSS 文件', icon: markRaw(Folder) },
   { name: 'GameAnalysis', title: '游戏分析', icon: markRaw(TrendCharts) },
   { name: 'DataAudit', title: '数据审计', icon: markRaw(Cpu) },

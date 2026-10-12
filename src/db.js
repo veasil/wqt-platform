@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import { migrateDownloads } from "./db/migrations/downloads.js";
 import { makePgApi, createPool } from "./sql-pg.js";
 
 // 主库连接：优先 DATABASE_URL（Zeabur 注入），兼容旧 PG_* 拼装
@@ -16,6 +17,7 @@ const NOW_MS = "(extract(epoch from now())*1000)::bigint";
 export async function initDb() {
   pool = createPool(CONN);
   api = makePgApi(pool);
+  await migrateDownloads(dbRun);
 
   await dbRun(`
     CREATE TABLE IF NOT EXISTS users (
@@ -289,4 +291,18 @@ export async function getGameEvents(sessionId) {
     "SELECT * FROM game_events WHERE session_id = ? ORDER BY ts ASC",
     [sessionId]
   );
+}
+
+// Metadata and publication audit must commit on the same connection.
+export async function withTransaction(work) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await work(makePgApi(client));
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (rollbackError) { console.error('Download rollback failed', rollbackError.message); }
+    throw error;
+  } finally { client.release(); }
 }
