@@ -91,7 +91,8 @@ try {
       await page.addInitScript(({bossToken,playerToken})=>{
         localStorage.setItem('aw_token',bossToken);localStorage.setItem('aw_user',JSON.stringify({role:'boss',username:'合成管理员'}));localStorage.setItem('WQT_AUTH_TOKEN',playerToken);
       },{bossToken,playerToken:freshToken});
-      await page.route('**/*',route=>new URL(route.request().url()).hostname==='127.0.0.1'?route.continue():route.abort());
+      // Restrict external HTTP without intercepting browser-managed blob downloads.
+      await page.route(/^https?:\/\//,route=>new URL(route.request().url()).hostname==='127.0.0.1'?route.continue():route.abort());
       await page.goto(`${base}/admin/downloads`);
       await page.locator('.el-input__inner').nth(0).fill('浏览器联调桌游资料');
       await page.locator('.el-input__inner').nth(1).fill('2');
@@ -102,6 +103,8 @@ try {
       await page.getByRole('cell',{name:'浏览器联调桌游资料',exact:true}).first().waitFor();
       if(process.env.WQT_DOWNLOAD_PREVIEW_DIR)await page.screenshot({path:`${process.env.WQT_DOWNLOAD_PREVIEW_DIR}/download-admin-pg.png`,fullPage:true});
       await page.goto(`${base}/downloads.html`);await page.getByRole('heading',{name:'浏览器联调桌游资料'}).waitFor();
+      const latestForBrowser=await (await request('/api/downloads',freshToken)).json();
+      assert.equal(latestForBrowser.releases[0].filename,'桌游资料.zip');
       const downloading=page.waitForEvent('download');await page.getByRole('button',{name:'↓ 下载资料'}).click();const downloaded=await downloading;
       assert.equal(await downloaded.failure(),null);assert.equal(downloaded.suggestedFilename(),'桌游资料.zip');
       assert.equal((await readFile(await downloaded.path())).toString(),'browser-end-to-end-materials');
