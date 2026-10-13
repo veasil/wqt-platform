@@ -2134,6 +2134,8 @@ app.get("/api/admin/oss/files", authMiddleware, async (req, res) => {
 });
 
 app.delete("/api/admin/oss/files", authMiddleware, async (req, res) => {
+  if (typeof req.body?.filename === "string" && path.posix.normalize("/" + req.body.filename.replaceAll("\\", "/")).slice(1).startsWith("download-center/"))
+    return res.status(403).json({ error: "下载中心的版本资料不能从 OSS 管理直接删除" });
   if (!ossClient) return res.status(500).json({ error: "服务器未配置 OSS" });
 
   const { filename } = req.body; // Expect JSON body: { "filename": "path/to/file" }
