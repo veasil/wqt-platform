@@ -127,3 +127,9 @@
 生产读取：PG18.6、应用与卡牌同库zeabur；应用角色可创建public表；用户41、会话28。平台内置createBackup拒绝Upgrade needed，不升级或采购。改用现有PG18工具备份zeabur到持久卷，pg_restore目录读取成功，权限600、大小1257345字节、SHA256=8cdbbe168a6cba2f5bc9ab47b66771a60dc2b1c764f163beddcb94a26ca71f5e。路径/var/lib/postgresql/wqt-release-backups/wqt007-20261013-224e1763-88d6-4032-addb-072276233d01.dump。未导出客户记录到本机、Git或聊天。备份不代表生产全库恢复演练已执行。
 
 安全回退已准备：codex/download-center-safe-rollback，157c6c6；基于实际生产5bc69a1仅关闭手机号旁路并修正production构建。保留新表、审计和OSS对象；不以旧未修镜像回退。正式部署继续保持gitTrigger=null，使用明确候选提交，不能重新开启日常推送自动上线。
+
+## 首次生产构建失败与范围内修复
+
+PR8已合并，候选main179172d，实际代码树与PG16/18双CI通过候选一致。deployFromSpecification拒绝Invalid input，读回无部署/配置变化；使用既有deploy mutation明确gitRef main后得到部署6acdd6f948c5c4b0780733f0，commitSHA准确。平台仍保留gitTrigger=null。
+
+构建阶段失败，生产仍运行旧镜像，未进入新代码启动。日志EALLOWREMOTE拒绝playwright-core在registry.npmmirror.com的URL。此前npm install --package-lock-only受到本机registry配置影响，将新增测试依赖的锁文件URL又写回镜像站。修复只规范残余resolved为registry.npmjs.org，每包version和integrity逐项断言一致；不扩大allowScripts、不启用allowRemote、不绕过平台安全机制。进一步CI和部署结果以下文及平台记录为准。
