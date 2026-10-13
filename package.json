@@ -6,9 +6,12 @@
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
-    "build": "npm --prefix enterprise-panel install && npm --prefix enterprise-panel run build && npm --prefix admin-web install && npm --prefix admin-web run build",
+    "build": "npm --prefix enterprise-panel ci --include=dev && npm --prefix enterprise-panel run build && npm --prefix admin-web ci --include=dev && npm --prefix admin-web run build",
     "migrate:pg": "node scripts/migrate_sqlite_to_pg.mjs",
-    "test:bench": "node test/bench/run.mjs"
+    "test:bench": "node test/bench/run.mjs",
+    "test:downloads": "node --test tests/runtime/admin-login-closed.test.mjs tests/runtime/downloads.test.mjs tests/runtime/downloads-pg.test.mjs",
+    "test:downloads:browser": "node --test tests/frontend/downloads.test.mjs",
+    "test:downloads:release": "node --test tests/runtime/downloads-release.test.mjs"
   },
   "allowScripts": {
     "sqlite3@5.1.7": true
@@ -25,5 +28,8 @@
     "node-fetch": "^3.3.2",
     "pg": "^8.21.0",
     "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "playwright": "^1.64.0"
   }
 }

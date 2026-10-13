@@ -1,4 +1,5 @@
 import express from "express";
+import { registerDownloadRoutes } from "./src/platform/downloads/routes.js";
 import cors from "cors";
 import morgan from "morgan";
 import dotenv from "dotenv";
@@ -2677,6 +2678,7 @@ app.post("/api/admin/cards/:id/release", authMiddleware, async (req, res) => {
 
 
 // ======== 登录 / 账号资产模块路由（已抽出到 src/routes/）========
+registerDownloadRoutes(app, { ossClient, upload });
 app.use(authRouter);
 app.use(accountAdminRouter);
 app.use(adminDataRouter);
