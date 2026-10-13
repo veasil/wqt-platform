@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { Transform } from 'node:stream';
 import { dbAll, dbGet, dbRun, withTransaction } from '../../db.js';
@@ -6,6 +7,11 @@ import { authMiddleware } from '../../middleware/auth.js';
 import { requireRole } from '../../middleware/rbac.js';
 const sessionEndpoint = handler => async (req,res,next) => { try { await handler(req,res); } catch(error) { next(error); } };
 const safeMiddleware = handler => (req,res,next) => Promise.resolve(handler(req,res,next)).catch(next);
+
+export function isDownloadCenterObject(name) {
+  if(typeof name !== 'string')return false;
+  return path.posix.normalize('/'+name.replaceAll('\\','/')).slice(1).startsWith('download-center/');
+}
 
 function downloadFilename(original) {
   let filename = original;

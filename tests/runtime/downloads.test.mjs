@@ -4,7 +4,12 @@ import express from 'express';
 import multer from 'multer';
 import { Readable } from 'node:stream';
 import { once } from 'node:events';
-import { registerDownloadRoutes, hasDownloadEntitlement } from '../../src/platform/downloads/routes.js';
+import { registerDownloadRoutes, hasDownloadEntitlement, isDownloadCenterObject } from '../../src/platform/downloads/routes.js';
+
+test('download version namespace remains protected through normalized OSS names',()=>{
+  for(const name of ['download-center/id','/download-center/id','other/../download-center/id','\\download-center\\id'])assert.equal(isDownloadCenterObject(name),true);
+  for(const name of ['game-review/file.html','download-center-other/id',null])assert.equal(isDownloadCenterObject(name),false);
+});
 
 async function fixture(options = {}) {
   const events = [], objects = [], deletes = [], rows = [];
