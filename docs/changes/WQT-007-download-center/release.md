@@ -1,6 +1,6 @@
 # WQT-007 发布检查与回退
 
-状态：未部署；候选已按追加授权关闭手机号认证旁路，待最终CI与产品/发布验收。目标为原版 main，基线 352edf1；不包含 WQT-006 账号模型或场次归属迁移。
+状态：2026-10-13已部署生产aa40cb2；发布授权与技术证据已记录，真实资料上传及产品体验验收待需求方完成。目标为原版 main，基线 352edf1；不包含 WQT-006 账号模型或场次归属迁移。
 
 ## 已有证据
 
@@ -66,3 +66,11 @@ npm run test:downloads:release要求专用WQT_TEST_PG_ADMIN_URL与WQT_TEST_DOCKE
 用户已授权部署。经平台只读核对，生产为5bc69a1而非352edf1，因此此前PR7候选被真实生产基线候选替代。当前发布分支codex/download-center-live-release；安全回退分支codex/download-center-safe-rollback，157c6c6，保留认证关闭补丁及生产原有功能。
 
 PG18.6实际库zeabur已备份到持久卷，权限600，pg_restore目录可读；详情和摘要见change.md。不启用收费备份或重开生产自动触发器。发布时保留现有密钥/变量，精确核对部署commitSHA后才确认生效。部署后核查首页/个人中心/重置密码/卡牌素材及两管理入口、旁路410、匿名下载401、新表和审计。
+
+## 最终上线与回退标识
+
+发布：aa40cb26641b419ad99672a9515b4187982ec290；Zeabur部署6ace01b0da7cf920c263c9b2，RUNNING；生产域名www.ai5000days.com；gitTrigger=null。两PG版本CI及HTTP/数据库/容器代码冒烟见change.md。
+
+安全回退：683594c74734e75e96151cb63d3e132b3dcc8751（codex/download-center-safe-rollback），保留管理员旁路关闭、download-center对象删除保护及生产构建修复。不能回退到未修原镜像。保留新增表、审计、私有对象；若恢复旧数据库备份，应重新评估管理员旧会话，避免恢复旧旁路签发的有效token。
+
+平台管理员/运营旧会话5个已撤销，需重新登录；普通玩家会话未批量撤销。资料目录目前为空，需求方在/admin/downloads上传第一版。没有模拟生产用户或执行真实短信UAT。

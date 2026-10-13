@@ -1,10 +1,10 @@
 # WQT-007 · 下载中心
 
-- 状态：本地实现完成，待验收与生产联调
+- 状态：已部署生产；需求方实际资料发布/体验验收待确认
 - 需求来源：2026-10-12 用户聊天：云端桌游资料更新、登录且权益有效才能查看下载、两个玩家入口、平台上传、下载审计。
 - 负责人：本次执行代理；业务验收人：需求提出方
-- GitHub：[草稿 PR #7](https://github.com/veasil/wqt-platform/pull/7)；实现提交 a17995e
-- 版本：独立工作区 C:/ArdenDev/worktrees/wqt-download-center；分支 codex/download-center-production；基于生产 origin/main 352edf1（2026-10-12 fetch 核对）。
+- GitHub：[PR #8](https://github.com/veasil/wqt-platform/pull/8)、[构建修复 #9](https://github.com/veasil/wqt-platform/pull/9)、[版本保护 #10](https://github.com/veasil/wqt-platform/pull/10) 已合并；PR7因生产基线校正已关闭。
+- 版本：实际生产发布 aa40cb26641b419ad99672a9515b4187982ec290，基于原运行5bc69a1保留生产功能；工作区C:/ArdenDev/worktrees/wqt-download-center-live。
 
 ## 目标与范围
 平台 boss 上传桌游资料版本；玩家查看最新版本并下载；记录下载请求及结果。非目标：自动发布、跨产品权益、新存储服务、浏览器保存证明。
@@ -133,3 +133,19 @@
 PR8已合并，候选main179172d，实际代码树与PG16/18双CI通过候选一致。deployFromSpecification拒绝Invalid input，读回无部署/配置变化；使用既有deploy mutation明确gitRef main后得到部署6acdd6f948c5c4b0780733f0，commitSHA准确。平台仍保留gitTrigger=null。
 
 构建阶段失败，生产仍运行旧镜像，未进入新代码启动。日志EALLOWREMOTE拒绝playwright-core在registry.npmmirror.com的URL。此前npm install --package-lock-only受到本机registry配置影响，将新增测试依赖的锁文件URL又写回镜像站。修复只规范残余resolved为registry.npmjs.org，每包version和integrity逐项断言一致；不扩大allowScripts、不启用allowRemote、不绕过平台安全机制。进一步CI和部署结果以下文及平台记录为准。
+
+## 最终生产发布证据（2026-10-13）
+
+- 发布授权：需求方明确“部署”；平台服务scoring-system（6a22926fe957fb053c550c2f），环境production（6a2289b495b39806d284a7c3），原服务和变量保留。
+- PR8/9/10依次合并。CI在PG16和PG18均通过：原功能12项，版本删除保护增加1项，最终每个PG矩阵13项、0跳过；[最终CI](https://github.com/veasil/wqt-platform/actions/runs/38380181463)。生产模式前端构建通过。
+- 第一次main179172d部署6acdd6f948c5c4b0780733f0在依赖安装阶段EALLOWREMOTE失败，原运行镜像保留，无新代码数据库初始化。锁文件两条Playwright URL改官方registry后，main eb404a6的部署6acdff88da7cf920c263c935成功。
+- 范围内集成检查发现旧通用OSS删除接口能够删download-center版本对象。PR10仅禁止该命名空间（包含规范化别名）经旧接口删除，保留更新发布、历史版本和其他对象管理行为；完整服务测试覆盖boss/玩家均拒绝，不执行真实对象删除。
+- 最终提交aa40cb26641b419ad99672a9515b4187982ec290、部署6ace01b0da7cf920c263c9b2，平台状态RUNNING，镜像tag=d-6ace01b0da7cf920c263c9b2；gitTrigger仍null。准确核对实际commitSHA，不以deploy mutation返回true代替上线证据。
+- 域名https://www.ai5000days.com：首页/my.html均200并包含/downloads.html；/reset-password.html、/downloads.html、/admin/、/enterprise/、/cards-pdf/2026B01.webp均200。/api/downloads、/api/downloads/verification/file、/api/admin/downloads、/api/admin/downloads/events匿名401。POST /api/auth/admin-login为410/ADMIN_LOGIN_CLOSED；正常POST /api/auth/login缺三要素返回400，不发短信。
+- 实际运行容器只读核对旧删除接口已有新版本保护，普通/规范化对象键均判定保护。未伪造生产用户JWT、未冒用账号、未创建生产测试用户。
+- 生产库zeabur：用户仍41，新download_releases/download_events及索引就绪；资料版本0，平台首次实际文件待负责人上传。线上未执行真实会员上传/下载/短信业务UAT；该链路已在隔离PG16/18与浏览器验证，真实OSS基础权限已按单对象授权验证。
+- 安全收尾：撤销boss/operator旧会话5个，防止旧手机号旁路已签发token继续有效；普通玩家会话保留。之后正常三要素重新登录即可，未改密码或JWT_SECRET。
+- 生产备份沿用上述PG18原生dump（600权限/TOC可读/摘要），没有下载客户数据到本机或上传Git。安全回退更新至683594c74734e75e96151cb63d3e132b3dcc8751，保留认证关闭和版本对象保护，移除新功能时不删download_*表/审计/私有对象。
+- 本机专用PG容器和独占库已清理。用户的账号改造工作区未合并/部署。未开启自动合并、自动部署或付费备份。
+
+本轮改变的假设：Git默认main与实际运行提交并不等同；平台RUNNING、具体镜像与commitSHA才是部署事实。新增不变量：回退不能恢复认证旁路，下载版本不能由通用OSS删除接口绕过留档。遗留事项：需求方上传真实桌游资料并体验验收；真实生产容量/全量恢复仍不由本次冒烟证明。重要概念：部署与Git合并的区别、私有对象与桶公开读的区别、修复签发入口与撤销旧会话的区别。
