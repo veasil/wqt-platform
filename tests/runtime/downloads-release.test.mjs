@@ -59,6 +59,10 @@ test('full production entry point and isolated backup/restore retain releases an
       assert.deepEqual(await (await request('/api/downloads',playerToken)).json(),{releases:[]});
       assert.equal((await request('/api/admin/downloads/events',playerToken)).status,403);
       assert.equal((await request('/api/admin/downloads/events',bossToken)).status,200);
+      for(const actor of [bossToken,playerToken]){
+        const response=await request('/api/admin/oss/files',actor,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:'other/../download-center/test-version'})});
+        assert.equal(response.status,403);
+      }
       const release=randomUUID();
       await db.query('INSERT INTO download_releases(id,title,version,filename,object_key,size,sha256,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[release,'合成发布资料','release-smoke','资料.zip',`synthetic-test/${release}`,3,'synthetic-hash',Date.now()]);
       assert.equal((await request(`/api/downloads/${release}/file`,playerToken)).status,502); // Real server with no OSS must fail closed.

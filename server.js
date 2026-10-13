@@ -1,5 +1,5 @@
 import express from "express";
-import { registerDownloadRoutes } from "./src/platform/downloads/routes.js";
+import { registerDownloadRoutes, isDownloadCenterObject } from "./src/platform/downloads/routes.js";
 import cors from "cors";
 import morgan from "morgan";
 import dotenv from "dotenv";
@@ -2135,6 +2135,8 @@ app.get("/api/admin/oss/files", authMiddleware, async (req, res) => {
 });
 
 app.delete("/api/admin/oss/files", authMiddleware, async (req, res) => {
+  if (isDownloadCenterObject(req.body?.filename))
+    return res.status(403).json({ error: "下载中心的版本资料不能从 OSS 管理直接删除，请在下载中心发布新版本" });
   if (!ossClient) return res.status(500).json({ error: "服务器未配置 OSS" });
 
   const { filename } = req.body; // Expect JSON body: { "filename": "path/to/file" }
