@@ -73,19 +73,18 @@
 }
 
 .supervisor-container h3 {
-    color: #a5b4fc;
-    /* 浅蓝紫色 */
-    font-size: 1.1rem;
-    font-weight: 700;
+    color: #c7d2fe;
+    /* 提亮的蓝紫色，对比更清晰 */
+    font-size: 1.4rem;
+    font-weight: 800;
     margin: 0 0 var(--space-md) 0;
     padding-bottom: var(--space-sm);
-    border-bottom: 1px solid rgba(102, 126, 234, 0.3);
+    border-bottom: 2px solid rgba(102, 126, 234, 0.45);
     display: flex;
     align-items: center;
     gap: 8px;
     position: relative;
     letter-spacing: 0.5px;
-    text-transform: uppercase;
 }
 
 .supervisor-container h3 i {
@@ -127,20 +126,20 @@
 
 /* 历史记录列表 */
 .history-list {
-    max-height: 250px;
+    max-height: 360px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     padding-right: 4px;
 }
 
 .history-item {
-    background: rgba(255, 255, 255, 0.05);
-    padding: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 12px 14px;
     border-radius: var(--radius-sm);
-    font-size: 0.9rem;
-    border-left: 3px solid transparent;
+    font-size: 1.05rem;
+    border-left: 4px solid transparent;
 }
 
 .history-item.skill-use {
@@ -153,28 +152,30 @@
 }
 
 .history-time {
-    font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.65);
     margin-bottom: 4px;
 }
 
 .history-content {
-    color: rgba(255, 255, 255, 0.9);
+    color: rgba(255, 255, 255, 0.96);
+    line-height: 1.6;
 }
 
 .history-changes {
-    font-size: 0.8rem;
-    color: #4ade80;
+    font-size: 0.95rem;
+    color: #5cf08e;
     /* 绿色 */
-    margin-top: 4px;
+    margin-top: 5px;
+    font-weight: 600;
 }
 
 .history-reason {
-    font-size: 0.78rem;
-    color: rgba(255, 255, 255, 0.6);
-    margin-top: 4px;
+    font-size: 0.92rem;
+    color: rgba(255, 255, 255, 0.72);
+    margin-top: 5px;
     font-style: italic;
-    line-height: 1.4;
+    line-height: 1.5;
 }
 
 /* 五力理由：内联可展开 */
@@ -182,8 +183,8 @@
     margin-top: 4px;
 }
 .history-reason-detail > summary {
-    font-size: 0.78rem;
-    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.92rem;
+    color: rgba(255, 255, 255, 0.82);
     cursor: pointer;
     list-style: none;
     user-select: none;
@@ -199,8 +200,8 @@
     content: '▾ ';
 }
 .history-reason-body {
-    font-size: 0.76rem;
-    color: rgba(255, 255, 255, 0.62);
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.75);
     margin-top: 4px;
     line-height: 1.5;
     white-space: pre-line;
@@ -234,8 +235,9 @@
 }
 
 .attribute-control label {
-    color: rgba(255, 255, 255, 0.8);
-    font-weight: 500;
+    color: rgba(255, 255, 255, 0.92);
+    font-weight: 600;
+    font-size: 1.05rem;
     min-width: 80px;
 }
 
@@ -248,8 +250,9 @@
 }
 
 .attr-btn {
-    width: 28px;
-    height: 28px;
+    width: 34px;
+    height: 34px;
+    font-size: 1.1rem;
     border-radius: 50%;
     border: none;
     cursor: pointer;
@@ -285,13 +288,13 @@
 }
 
 .attr-input {
-    width: 40px;
+    width: 46px;
     background: transparent;
     border: none;
     color: white;
     text-align: center;
     font-weight: bold;
-    font-size: 1rem;
+    font-size: 1.25rem;
 }
 
 .attr-input:focus {
@@ -329,12 +332,12 @@
 }
 
 .info-item span:first-child {
-    font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.6);
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.72);
 }
 
 .info-item span:last-child {
-    font-size: 1.2rem;
+    font-size: 1.65rem;
     font-weight: bold;
     color: white;
     text-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
@@ -348,10 +351,11 @@
 }
 
 .supervisor-actions .action-btn {
-    padding: 10px 20px;
+    padding: 12px 24px;
     border-radius: var(--radius-pill);
     border: none;
     font-weight: 600;
+    font-size: 1.05rem;
     cursor: pointer;
     transition: all 0.3s;
     background: rgba(255, 255, 255, 0.1);

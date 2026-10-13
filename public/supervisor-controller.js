@@ -38,32 +38,7 @@ class SupervisorController {
                             <canvas id="radar-chart" width="300" height="300"></canvas>
                         </div>
                     </div>
-                    
-                    <div class="history-section">
-                        <h3>操作历史</h3>
-                        <div id="supervisor-history" class="history-list"></div>
-                    </div>
-                </div>
-                
-                <div class="supervisor-right">
-                    <div class="attributes-section">
-                        <h3>伍力控制面板</h3>
-                        <div class="attributes-controls">
-                            ${Object.entries(this.globalState.getAttributes()).map(([attr, value]) => `
-                                <div class="attribute-control">
-                                    <label>${attr}</label>
-                                    <div class="control-group">
-                                        <button class="attr-btn minus" data-attr="${attr}">-</button>
-                                        <input type="number" class="attr-input" data-attr="${attr}" 
-                                               value="3" min="0" max="10">
-                                        <button class="attr-btn plus" data-attr="${attr}">+</button>
-                                    </div>
-                                    <div class="attr-value">3</div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                    
+
                     <div class="game-info-section">
                         <h3>游戏状态</h3>
                         <div class="game-info">
@@ -85,7 +60,32 @@ class SupervisorController {
                             </div>
                         </div>
                     </div>
-                    
+                </div>
+
+                <div class="supervisor-right">
+                    <div class="attributes-section">
+                        <h3>伍力控制面板</h3>
+                        <div class="attributes-controls">
+                            ${Object.entries(this.globalState.getAttributes()).map(([attr, value]) => `
+                                <div class="attribute-control">
+                                    <label>${attr}</label>
+                                    <div class="control-group">
+                                        <button class="attr-btn minus" data-attr="${attr}">-</button>
+                                        <input type="number" class="attr-input" data-attr="${attr}"
+                                               value="3" min="0" max="10">
+                                        <button class="attr-btn plus" data-attr="${attr}">+</button>
+                                    </div>
+                                    <div class="attr-value">3</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="history-section">
+                        <h3>操作历史</h3>
+                        <div id="supervisor-history" class="history-list"></div>
+                    </div>
+
                     <div class="supervisor-actions">
                         <button id="reset-attributes" class="action-btn">重置属性</button>
                         <button id="export-data" class="action-btn">导出数据</button>

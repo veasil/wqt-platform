@@ -38,8 +38,8 @@
         .game-header h1{padding-left:56px}
     </style>
 
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Lucide Icons（自托管，固定版本；避免国内网络访问 unpkg 超时导致图标缺失）-->
+    <script src="js/lucide.min.js"></script>
 
     <!-- 保留兼容性（可选） -->
     <!-- <link rel="stylesheet" href="styles.css"> -->
@@ -88,6 +88,7 @@
                     </button>
                     <div id="user-badge" class="user-badge hidden">
                         <span id="user-name"></span>
+                        <a href="/downloads.html" class="auth-btn secondary" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg>下载中心</a>
                         <a href="/my.html" id="my-page-link" class="auth-btn secondary" style="text-decoration:none;">个人中心</a>
                         <button id="logout-btn" class="auth-btn secondary">退出</button>
                     </div>
@@ -112,7 +113,7 @@
                     <div class="card-input">
                         <label for="card-number">卡牌编号:</label>
                         <input type="number" id="card-number" min="1" max="45" placeholder="输入1-45">
-                        <button id="view-event" class="view-event-btn">查看事件</button>
+                        <button id="view-event" class="view-event-btn">查看卡牌</button>
                     </div>
                     <div class="choice-input">
                         <label>选择选项:</label>
@@ -244,6 +245,11 @@
                            style="color: #4a9eff; font-size: 13px; text-decoration: none; font-weight: 500; margin-left: 4px;">
                            注册新账号
                         </a>
+                        <span style="color: rgba(255,255,255,0.3); font-size: 13px; margin: 0 8px;">|</span>
+                        <a href="/reset-password.html" target="_blank"
+                           style="color: #4a9eff; font-size: 13px; text-decoration: none; font-weight: 500;">
+                           忘记密码？
+                        </a>
                     </div>
                 </div>
 
@@ -280,7 +286,7 @@
 
                     <div class="auth-form" style="margin-top: 15px;">
                         <div class="input-group">
-                            <label><strong>🎫 活动码</strong> <span style="font-size:12px;color:rgba(255,255,255,0.5);">(选填，有活动码可自动填充地点)</span></label>
+                            <label><strong>🎫 活动码</strong> <span style="font-size:12px;color:#ff9800;">(必填，有活动码可自动填充地点)</span></label>
                             <div style="display:flex;gap:8px;">
                                 <input id="setup-activity-code" placeholder="例如：ACT-001" style="flex:1;" />
                                 <button id="setup-activity-lookup" class="auth-btn" style="padding:8px 16px;font-size:13px;">查询</button>
@@ -292,7 +298,7 @@
                         </div>
 
                         <div class="input-group">
-                            <label><strong>📍 游戏地点</strong></label>
+                            <label><strong>📍 游戏地点</strong> <span style="font-size:12px;color:rgba(255,255,255,0.5);">(选填)</span></label>
                             <input id="setup-location" placeholder="例如：XX社区活动中心、家里..." />
                         </div>
 
@@ -348,7 +354,7 @@
                             <h4>自由版</h4>
                             <div class="mode-desc">自定义设置</div>
                             <div class="mode-time">自定义</div>
-                            <div class="mode-detail">不少于7张</div>
+                            <div class="mode-detail" id="free-mode-min-detail">不少于7张</div>
                         </div>
                     </div>
 
@@ -365,7 +371,7 @@
                                 <input type="number" id="free-c2" placeholder="成长" style="flex:1;" />
                                 <input type="number" id="free-c3" placeholder="青春" style="flex:1;" />
                             </div>
-                            <div class="auth-hint" style="font-size: 11px;">建议每张卡牌预留5分钟。总数≥7张。</div>
+                            <div class="auth-hint" style="font-size: 11px;" id="free-min-hint">建议每张卡牌预留5分钟。总数≥7张。</div>
                         </div>
                     </div>
 
@@ -451,6 +457,7 @@
     </div>
 
     <!-- <script src="cards-data.js"></script> -->
+    <script src="cards-pdf-map.js"></script>
     <script src="js/starfield.js"></script>
     <script src="global-state.js"></script>
     <script src="supervisor-controller.js"></script>
@@ -501,6 +508,35 @@
         }
 
         window.addEventListener('load', async () => {
+            // ========== 登录状态（前端）==========
+            // 必须在 loadSystemSettings()→api() 之前声明，否则 const 的暂时性死区(TDZ)会抛
+            // "Cannot access 'authState' before initialization"
+            const authState = {
+                token: localStorage.getItem('WQT_AUTH_TOKEN') || null,
+                user: null
+            };
+            // 同理：systemSettings 也必须在 loadSystemSettings() 之前声明，
+            // 否则 forEach 里访问它会因 TDZ 抛 "Cannot access 'systemSettings' before initialization"
+            let systemSettings = {};
+            // setupData 同理：renderGameModes()（由 loadSystemSettings 调用）会写 setupData.mode，
+            // 必须在调用前声明，否则 TDZ 抛 "Cannot access 'setupData' before initialization"
+            let setupData = {
+                location: '',
+                players: {
+                    enlightenment: 0,
+                    growth: 0,
+                    adolescence: 0,
+                    adults: 0
+                },
+                mode: 'standard', // standard, essence, free
+                settings: {
+                    duration: 5000,
+                    targetCards: 15,
+                    cardsPerPhase: { '启蒙期': 5, '成长期': 5, '青春期': 5 }
+                },
+                activityCode: null
+            };
+
             // Fetch cards data and settings
             try {
                 // 加载系统配置
@@ -512,6 +548,10 @@
                     const gRes = await fetch('api/card-groups');
                     if (gRes.ok) {
                         window.CARD_GROUPS = (await gRes.json()).groups || [];
+                        // 前端展示层：隐藏「1.1版卡牌」、把「初版卡牌」显示为「2025版」（不改数据库）
+                        window.CARD_GROUPS = window.CARD_GROUPS
+                            .filter(g => g.name !== '1.1版卡牌')
+                            .map(g => g.name === '初版卡牌' ? { ...g, name: '2025版' } : g);
                     }
                 } catch (_) {}
 
@@ -572,7 +612,7 @@
             let hasStartedNewGame = false; // 跟踪是否已按新游戏
             let skillsUsed = { '安全力': false, '脑波力': false, '实感力': false, '创心力': false, '沟通力': false };
             let creativeOptions = {}; // 存储创心力技能的选项D
-            let systemSettings = {}; // 全局系统配置
+            // systemSettings 已提前到 loadSystemSettings() 调用之前声明（见上方 TDZ 注释）
 
             async function loadSystemSettings() {
                 try {
@@ -582,6 +622,13 @@
                             systemSettings[s.key] = s.value;
                         });
                         console.log('System settings loaded:', systemSettings);
+
+                        // 0. 同步「最低卡牌数」展示文案（受 REVIEW_MIN_CARDS 管理）
+                        const minCards = parseInt(systemSettings.REVIEW_MIN_CARDS) || 7;
+                        const minDetail = document.getElementById('free-mode-min-detail');
+                        if (minDetail) minDetail.textContent = '不少于' + minCards + '张';
+                        const minHint = document.getElementById('free-min-hint');
+                        if (minHint) minHint.textContent = '建议每张卡牌预留5分钟。总数≥' + minCards + '张。';
 
                         // 1. 应用品牌信息
                         if (systemSettings.BRANDING_INFO) {
@@ -663,6 +710,7 @@
 
                 // 总是添加自由版（如果配置里没写的话，通常建议配置里包含）
                 if (!modes.find(m => m.id === 'free')) {
+                    const minCards = parseInt(systemSettings.REVIEW_MIN_CARDS) || 7;
                     const freeCard = document.createElement('div');
                     freeCard.className = 'mode-choice-card';
                     freeCard.dataset.mode = 'free';
@@ -670,7 +718,7 @@
                         <h4>自由版</h4>
                         <div class="mode-desc">自定义设置</div>
                         <div class="mode-time">自定义</div>
-                        <div class="mode-detail">不少于7张</div>
+                        <div class="mode-detail" id="free-mode-min-detail">不少于${minCards}张</div>
                     `;
                     freeCard.onclick = () => {
                         document.querySelectorAll('.mode-choice-card').forEach(c => c.classList.remove('selected'));
@@ -682,12 +730,6 @@
                     container.appendChild(freeCard);
                 }
             }
-
-            // ========== 登录状态（前端） ==========
-            const authState = {
-                token: localStorage.getItem('WQT_AUTH_TOKEN') || null,
-                user: null
-            };
 
             // 登录成功后保存环境标记，供 /my.html 使用
             function saveEnvMarkers() {
@@ -1321,6 +1363,7 @@
                                         cardId: recId,
                                         cardCode: card.card_code || null,
                                         phase: card.phase,
+                                        safetyType: card.safety_type || null,
                                         eventText: card.event,
                                         choice: 'D',
                                         optionText: optionD,
@@ -1529,10 +1572,11 @@
                         ts: Date.now()
                     });
                 }
+                const cardImg = window.getCardImage ? window.getCardImage(card.card_code) : null;
+                const hasImg = !!cardImg;
                 document.getElementById('modal-body').innerHTML = `
                     <h3>卡牌 ${card.card_code || cardNum} - ${card.safetyType}</h3>
                     ${card.guide_text ? `<p style="color:#8a6d3b;font-style:italic">${card.guide_text}</p>` : ''}
-                    <p>${card.event}</p>
                     <div class="audio-player" id="card-audio-player">
                         <button class="audio-player-btn" id="audio-play-btn" title="播放/暂停">
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -1549,14 +1593,22 @@
                             </div>
                         </div>
                     </div>
-                    <div style="margin-top: 2rem;">
-                        <h4>选项：</h4>
-                        <div style="margin-top: 1rem;">
-                            <p><strong>A:</strong> ${card.options.A.text}</p>
-                            <p><strong>B:</strong> ${card.options.B.text}</p>
-                            <p><strong>C:</strong> ${card.options.C.text}</p>
-                        </div>
-                    </div>
+                    ${hasImg
+                        ? `<div class="card-pdf-wrap">
+                            <img class="card-pdf-img" src="${cardImg}" alt="卡牌 ${card.card_code} 印刷版卡面" loading="lazy">
+                           </div>
+                           <p class="card-pdf-hint">📄 ${card.card_code} 印刷版卡面 ·
+                               <a href="${cardImg}" target="_blank" rel="noopener">查看大图</a></p>`
+                        : `<p>${card.event}</p>
+                           <div style="margin-top: 2rem;">
+                               <h4>选项：</h4>
+                               <div style="margin-top: 1rem;">
+                                   <p><strong>A:</strong> ${card.options.A.text}</p>
+                                   <p><strong>B:</strong> ${card.options.B.text}</p>
+                                   <p><strong>C:</strong> ${card.options.C.text}</p>
+                               </div>
+                           </div>`
+                    }
                 `;
 
                 // 初始化音频播放器
@@ -1816,6 +1868,7 @@
                                 cardId: recId,
                                 cardCode: card.card_code || null,
                                 phase: card.phase,
+                                safetyType: card.safety_type || null,
                                 eventText: card.event,
                                 choice: selectedChoice,
                                 optionText: option.text,
@@ -1947,22 +2000,7 @@
             };
 
             // ========== Setup Wizard Logic ==========
-            let setupData = {
-                location: '',
-                players: {
-                    enlightenment: 0,
-                    growth: 0,
-                    adolescence: 0,
-                    adults: 0
-                },
-                mode: 'standard', // standard, essence, free
-                settings: {
-                    duration: 5000,
-                    targetCards: 15,
-                    cardsPerPhase: { '启蒙期': 5, '成长期': 5, '青春期': 5 }
-                },
-                activityCode: null
-            };
+            // setupData 已提前到 loadSystemSettings() 调用之前声明（见上方 TDZ 注释）
 
             const setupModal = document.getElementById('setup-modal');
             const setupClose = document.getElementById('setup-close');
@@ -1982,15 +2020,17 @@
 
             // Step 1 Next
             document.getElementById('setup-next-btn').onclick = () => {
+                const code = document.getElementById('setup-activity-code').value.trim();
                 const loc = document.getElementById('setup-location').value.trim();
                 const p1 = parseInt(document.getElementById('p-enlightenment').value) || 0;
                 const p2 = parseInt(document.getElementById('p-growth').value) || 0;
                 const p3 = parseInt(document.getElementById('p-adolescence').value) || 0;
                 const p4 = parseInt(document.getElementById('p-adults').value) || 0;
 
-                if (!loc) { alert('请输入游戏地点'); return; }
+                if (!code) { alert('请输入活动码（必填）'); return; }
                 if ((p1 + p2 + p3 + p4) <= 0) { alert('请至少输入一位玩家'); return; }
 
+                setupData.activityCode = code;
                 setupData.location = loc;
                 setupData.players = { enlightenment: p1, growth: p2, adolescence: p3, adults: p4 };
 
@@ -2029,7 +2069,8 @@
                     const c3 = parseInt(document.getElementById('free-c3').value) || 0;
                     const total = c1 + c2 + c3;
 
-                    if (total < 7) { alert('自由版卡牌总数不得少于7张'); return; }
+                    const minCards = parseInt(systemSettings.REVIEW_MIN_CARDS) || 7;
+                    if (total < minCards) { alert('自由版卡牌总数不得少于' + minCards + '张'); return; }
                     setupData.settings = {
                         duration: dur,
                         targetCards: total,
@@ -2072,7 +2113,10 @@
                         window.GameReview.setSessionId(activeSessionId);
                     }
                     if (window.GameReview && window.GameReview.recordEvent && activeSessionId) {
-                        window.GameReview.recordEvent('game_start', { ts: Date.now(), config: setupData });
+                        // 记录本局所用卡组/版本（与「查看卡牌」一致的展示名映射），供复盘报告标注「玩的是哪一版」
+                        let cg = window.CURRENT_CARD_GROUP || null;
+                        if (cg && cg.name === '初版卡牌') cg = { ...cg, name: '2025版' };
+                        window.GameReview.recordEvent('game_start', { ts: Date.now(), config: setupData, cardGroup: cg });
                     }
                 } catch (err) {
                     activeSessionId = null;

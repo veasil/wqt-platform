@@ -13,6 +13,14 @@ class SoundEffects {
         }
     }
 
+    // 鸿蒙 ArkWeb / Chromium 的自动播放策略：AudioContext 初始为 'suspended'，
+    // 必须在用户手势中 resume() 才会出声。需在首次点击/触摸时调用。
+    unlock() {
+        if (this.audioContext && this.audioContext.state === 'suspended') {
+            this.audioContext.resume().catch(() => {});
+        }
+    }
+
     // 创建复合音色
     createChord(frequencies, type = 'triangle', duration = 0.3, delay = 0) {
         if (!this.audioContext) return;
@@ -261,6 +269,12 @@ class SoundEffects {
 
 // 全局音效实例
 window.soundEffects = new SoundEffects();
+
+// 首次用户手势时解锁音频（覆盖欢迎页点击穿越、登录、开始游戏等所有入口）。
+// once:true 保证只解锁一次；capture 阶段尽早触发。
+['click', 'touchstart', 'keydown'].forEach(evt => {
+    window.addEventListener(evt, () => window.soundEffects && window.soundEffects.unlock(), { once: true, capture: true });
+});
 
 // 兼容原有接口
 function playSound(type) {

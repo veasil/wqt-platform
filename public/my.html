@@ -186,6 +186,107 @@
         }
 
         .loading { text-align: center; color: #999; padding: 20px; }
+
+        /* ===== 会员期限 ===== */
+        .badge {
+            display: inline-block;
+            font-size: 12px;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+        .badge.ok { background: #e8f5e9; color: #2e7d32; }
+        .badge.warn { background: #fff3e0; color: #e65100; }
+        .badge.danger { background: #ffebee; color: #c62828; }
+
+        /* ===== 守望学习网格 ===== */
+        .study-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+        }
+        .study-card {
+            border: 1px solid #eee;
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            background: #fafafa;
+            transition: box-shadow .2s, transform .2s;
+        }
+        .study-card:hover { box-shadow: 0 6px 18px rgba(0,0,0,.12); transform: translateY(-2px); }
+        .study-thumb {
+            width: 100%; aspect-ratio: 1089 / 612; /* 卡面图为横版 16:9 */
+            background: linear-gradient(135deg,#667eea,#764ba2);
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 13px; font-weight: 600;
+            background-size: cover; background-position: center;
+        }
+        .study-meta { padding: 8px 10px; }
+        .study-code { font-size: 11px; color: #999; }
+        .study-title { font-size: 13px; color: #333; font-weight: 600; line-height: 1.35; margin-top: 2px;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+        /* ===== 卡牌详情 翻页 ===== */
+        .cd-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,.6);
+            display: none; z-index: 1000; align-items: center; justify-content: center; padding: 16px;
+        }
+        .cd-overlay.show { display: flex; }
+        .cd-modal {
+            position: relative;
+            background: #fff; border-radius: 16px; width: 100%; max-width: 460px;
+            max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;
+        }
+        .cd-nav {
+            position: absolute; top: 50%; transform: translateY(-50%); z-index: 1001;
+            width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer;
+            background: rgba(120,120,120,.45); color: #fff; font-size: 24px; line-height: 1;
+            display: flex; align-items: center; justify-content: center;
+            transition: background .2s, opacity .2s;
+        }
+        .cd-nav:hover { background: rgba(90,90,90,.65); }
+        .cd-nav.prev { left: 10px; }
+        .cd-nav.next { right: 10px; }
+        .cd-nav:disabled { opacity: 0; pointer-events: none; }
+        .cd-close {
+            position: absolute; top: 22px; right: 22px; z-index: 1002;
+            width: 32px; height: 32px; border-radius: 50%; border: none;
+            background: rgba(0,0,0,.5); color: #fff; font-size: 18px; cursor: pointer;
+        }
+        .cd-track {
+            display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch; flex: 1;
+        }
+        .cd-track::-webkit-scrollbar { display: none; }
+        .cd-page {
+            min-width: 100%; scroll-snap-align: start; box-sizing: border-box;
+            padding: 22px; overflow-y: auto;
+        }
+        .cd-page h4 { color: #667eea; font-size: 15px; margin-bottom: 12px; }
+        .cd-img {
+            width: 100%; border-radius: 10px; margin-bottom: 12px;
+            background: linear-gradient(135deg,#667eea,#764ba2); aspect-ratio: 1089 / 612;
+            object-fit: contain; display: block;
+        }
+        .cd-field { margin-bottom: 12px; }
+        .cd-field .k { font-size: 12px; color: #999; margin-bottom: 3px; }
+        .cd-field .v { font-size: 14px; color: #333; line-height: 1.6; white-space: pre-wrap; }
+        .cd-opt-row {
+            display: flex; gap: 8px; padding: 8px 0; border-bottom: 1px solid #f3f3f3; font-size: 13px;
+        }
+        .cd-opt-key {
+            flex: 0 0 22px; height: 22px; border-radius: 6px; background: #eef0fb; color: #667eea;
+            display: flex; align-items: center; justify-content: center; font-weight: 700;
+        }
+        .attr-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+        .attr-tag { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: #f0f0f0; color: #888; }
+        .attr-tag.pos { background: #e8f5e9; color: #2e7d32; }
+        .attr-tag.neg { background: #ffebee; color: #c62828; }
+        .cd-dots {
+            display: flex; justify-content: center; gap: 7px; padding: 12px; border-top: 1px solid #f0f0f0;
+        }
+        .cd-dot { width: 7px; height: 7px; border-radius: 50%; background: #d8d8d8; transition: background .2s, width .2s; }
+        .cd-dot.active { background: #667eea; width: 18px; border-radius: 4px; }
     </style>
 </head>
 
@@ -194,11 +295,14 @@
         <div class="nav-bar">
             <a id="home-link" href="/">&larr; 返回首页</a>
             <h2>个人中心</h2>
+            <a href="/downloads.html" style="display:inline-flex;align-items:center;gap:6px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg>下载中心</a>
             <a href="#" id="logout-btn">退出登录</a>
         </div>
 
         <div class="tabs">
             <button class="tab-btn active" data-tab="profile">个人信息</button>
+            <button class="tab-btn" data-tab="study">守望学习</button>
+            <button class="tab-btn" data-tab="activity">活动</button>
             <button class="tab-btn" data-tab="activities">活动记录</button>
             <button class="tab-btn" data-tab="feedback">反馈</button>
         </div>
@@ -208,6 +312,12 @@
             <div class="card">
                 <h3>基本信息</h3>
                 <div id="profile-info">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+            <div class="card">
+                <h3>会员期限</h3>
+                <div id="membership-info">
                     <div class="loading">加载中...</div>
                 </div>
             </div>
@@ -244,6 +354,55 @@
                     <button type="submit" class="btn">更新密码</button>
                     <div class="msg" id="password-msg"></div>
                 </form>
+            </div>
+        </div>
+
+        <!-- 守望学习 -->
+        <div class="section" id="sec-study">
+            <div class="card">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                    <h3 style="margin:0;">守望学习 <span id="study-group-name" style="color:#999;font-weight:normal;font-size:13px;"></span></h3>
+                    <select id="study-filter" style="width:auto;padding:6px 10px;font-size:13px;">
+                        <option value="">全部安全类型</option>
+                    </select>
+                </div>
+                <p style="color:#999;font-size:12px;margin:8px 0 4px;">点击卡牌查看卡面、各选项与培训资料</p>
+                <div id="study-grid" style="margin-top:14px;">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 活动 -->
+        <div class="section" id="sec-activity">
+            <div class="card">
+                <h3>开启活动</h3>
+                <p style="color:#999;font-size:12px;margin-bottom:14px;">填写信息提交申请，运营审核通过后活动码即可使用。</p>
+                <form id="apply-form">
+                    <div class="form-group">
+                        <label>活动名称</label>
+                        <input type="text" id="apply-name" maxlength="40" placeholder="例如：春季亲子专场" required>
+                    </div>
+                    <div class="form-group">
+                        <label>地点 / 主办（选填）</label>
+                        <input type="text" id="apply-location" maxlength="60" placeholder="例如：XX社区中心">
+                    </div>
+                    <button type="submit" class="btn">提交申请</button>
+                    <div class="msg" id="apply-msg"></div>
+                </form>
+                <h3 style="margin-top:24px;">我发起的活动</h3>
+                <div id="created-list">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+            <div class="card">
+                <h3>查询活动</h3>
+                <form id="lookup-form" style="display:flex;gap:8px;align-items:flex-start;">
+                    <input type="text" id="lookup-code" placeholder="输入活动码 如 ACT-001" style="flex:1;text-transform:uppercase;">
+                    <button type="submit" class="btn" style="white-space:nowrap;">查询</button>
+                </form>
+                <div class="msg" id="lookup-msg"></div>
+                <div id="lookup-result"></div>
             </div>
         </div>
 
@@ -288,6 +447,18 @@
         </div>
     </div>
 
+    <!-- 卡牌详情 翻页 -->
+    <div class="cd-overlay" id="cd-overlay">
+        <button class="cd-close" id="cd-close" aria-label="关闭">&times;</button>
+        <div class="cd-modal">
+            <button class="cd-nav prev" id="cd-prev" aria-label="上一页">&lsaquo;</button>
+            <div class="cd-track" id="cd-track"></div>
+            <button class="cd-nav next" id="cd-next" aria-label="下一页">&rsaquo;</button>
+            <div class="cd-dots" id="cd-dots"></div>
+        </div>
+    </div>
+
+    <script src="cards-pdf-map.js"></script>
     <script>
         // ===== Base path (staging support) =====
         const HOME_URL = localStorage.getItem('wqt_home_url') || (window.location.pathname.startsWith('/staging/') ? '/staging/' : '/');
@@ -336,6 +507,8 @@
                 sections.forEach(s => s.classList.remove('active'));
                 btn.classList.add('active');
                 document.getElementById('sec-' + btn.dataset.tab).classList.add('active');
+                if (btn.dataset.tab === 'study') loadStudy();
+                if (btn.dataset.tab === 'activity') loadCreatedActivities();
             };
         });
 
@@ -352,9 +525,41 @@
                 `;
                 document.getElementById('edit-realname').value = user.realName || '';
                 document.getElementById('edit-guardian').value = user.guardianName || '';
+                renderMembership(user);
             } catch (e) {
                 document.getElementById('profile-info').innerHTML = `<div class="msg error">${e.message}</div>`;
             }
+        }
+
+        // ===== 会员期限 =====
+        function renderMembership(user) {
+            const el = document.getElementById('membership-info');
+            const identity = user.enterpriseId ? '组织成员' : '独立守望者';
+            const PERMANENT = 253402300799000; // account.js PERMANENT_UNTIL
+            let untilHtml, badge;
+            if (user.validUntil == null || user.validUntil >= PERMANENT) {
+                untilHtml = '永久有效';
+                badge = '<span class="badge ok">● 有效</span>';
+            } else {
+                const days = Math.ceil((user.validUntil - Date.now()) / 86400000);
+                const dateStr = formatTime(user.validUntil).slice(0, 10);
+                if (!user.validityValid || days < 0) {
+                    untilHtml = `<span style="color:#c62828;">${dateStr}（已过期）</span>`;
+                    badge = '<span class="badge danger">● 已过期</span>';
+                } else if (days <= 14) {
+                    untilHtml = `${dateStr} <span style="color:#e65100;">（剩 ${days} 天）</span>`;
+                    badge = '<span class="badge warn">● 即将到期</span>';
+                } else {
+                    untilHtml = `${dateStr}（剩 ${days} 天）`;
+                    badge = '<span class="badge ok">● 有效</span>';
+                }
+            }
+            const sourceNote = user.enterpriseId ? '（跟随组织统一到期）' : '';
+            el.innerHTML = `
+                <div class="info-row"><span class="info-label">当前身份</span><span class="info-value">${identity}</span></div>
+                <div class="info-row"><span class="info-label">有效期至</span><span class="info-value">${untilHtml}</span></div>
+                <div class="info-row"><span class="info-label">状态</span><span class="info-value">${badge} <span style="color:#bbb;font-size:11px;">${sourceNote}</span></span></div>
+            `;
         }
 
         document.getElementById('edit-profile-form').onsubmit = async (e) => {
@@ -463,6 +668,248 @@
                 await api('api/me/feedback', { method: 'POST', body: { type, content } });
                 showMsg(msgEl, '反馈已提交，感谢！', 'success');
                 document.getElementById('feedback-content').value = '';
+            } catch (err) {
+                showMsg(msgEl, err.message, 'error');
+            }
+        };
+
+        // ===== 守望学习 =====
+        const ATTR_ORDER = ['安全力', '脑波力', '实感力', '创心力', '沟通力'];
+        let studyLoaded = false;
+        let studyCards = [];
+
+        function esc(s) {
+            return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        }
+
+        async function loadStudy() {
+            if (studyLoaded) return;
+            studyLoaded = true;
+            const grid = document.getElementById('study-grid');
+            try {
+                const gid = sessionStorage.getItem('current_card_group_id');
+                const path = 'api/cards/study' + (gid ? ('?group_id=' + encodeURIComponent(gid)) : '');
+                const data = await api(path);
+                studyCards = data.cards || [];
+                document.getElementById('study-group-name').textContent =
+                    data.group ? `· ${data.group.name}（${studyCards.length}）` : `（${studyCards.length}）`;
+                // 安全类型筛选项
+                const types = [...new Set(studyCards.map(c => c.safetyType).filter(Boolean))];
+                const filter = document.getElementById('study-filter');
+                types.forEach(t => {
+                    const o = document.createElement('option'); o.value = t; o.textContent = t; filter.appendChild(o);
+                });
+                filter.onchange = () => renderStudyGrid(filter.value);
+                renderStudyGrid('');
+            } catch (e) {
+                studyLoaded = false;
+                const expired = /到期|停用|未登录|过期/.test(e.message || '');
+                grid.innerHTML = expired
+                    ? `<div class="empty-state">🔒 ${esc(e.message)}<br><span style="font-size:12px;">守望学习为会员权益，开通/续费后即可使用</span></div>`
+                    : `<div class="msg error">${esc(e.message)}</div>`;
+            }
+        }
+
+        function renderStudyGrid(typeFilter) {
+            const grid = document.getElementById('study-grid');
+            const list = typeFilter ? studyCards.filter(c => c.safetyType === typeFilter) : studyCards;
+            if (list.length === 0) { grid.innerHTML = '<div class="empty-state">暂无卡牌</div>'; return; }
+            grid.className = 'study-grid';
+            grid.innerHTML = list.map((c, i) => {
+                const idx = studyCards.indexOf(c);
+                const img = window.getCardImage ? window.getCardImage(c.card_code) : null;
+                const thumbStyle = img ? `style="background-image:url('${img}')"` : '';
+                const thumbInner = img ? '' : esc(c.card_code || c.key || '');
+                return `
+                    <div class="study-card" data-idx="${idx}">
+                        <div class="study-thumb" ${thumbStyle}>${thumbInner}</div>
+                        <div class="study-meta">
+                            <div class="study-code">${esc(c.card_code || '')} · ${esc(c.safetyType || '')}</div>
+                            <div class="study-title">${esc(c.title || c.event || '未命名')}</div>
+                        </div>
+                    </div>`;
+            }).join('');
+            grid.querySelectorAll('.study-card').forEach(el => {
+                el.onclick = () => openCardDetail(studyCards[Number(el.dataset.idx)]);
+            });
+        }
+
+        function attrTagsHtml(effects) {
+            if (!effects) return '';
+            return '<div class="attr-tags">' + ATTR_ORDER.map(k => {
+                const v = Number(effects[k] || 0);
+                const cls = v > 0 ? 'pos' : (v < 0 ? 'neg' : '');
+                const sign = v > 0 ? '+' + v : v;
+                return `<span class="attr-tag ${cls}">${k} ${sign}</span>`;
+            }).join('') + '</div>';
+        }
+
+        function field(label, val) {
+            if (!val) return '';
+            return `<div class="cd-field"><div class="k">${label}</div><div class="v">${esc(val)}</div></div>`;
+        }
+
+        function openCardDetail(card) {
+            const track = document.getElementById('cd-track');
+            const dots = document.getElementById('cd-dots');
+            const pages = [];
+
+            // 第 1 页：卡面 + 标题 + 选项概览
+            const img = window.getCardImage ? window.getCardImage(card.card_code) : null;
+            const imgHtml = img ? `<img class="cd-img" src="${img}" alt="">` : `<div class="cd-img"></div>`;
+            const optKeys = Object.keys(card.options || {}).sort();
+            const optOverview = optKeys.map(k =>
+                `<div class="cd-opt-row"><span class="cd-opt-key">${k}</span><span>${esc(card.options[k].text)}</span></div>`
+            ).join('');
+            pages.push(`
+                ${imgHtml}
+                <div class="study-code">${esc(card.card_code || '')} · ${esc(card.safetyType || '')} · ${esc(card.phase || '')}</div>
+                <h4 style="margin:6px 0 12px;">${esc(card.title || '未命名')}</h4>
+                ${field('情境', card.event)}
+                <div class="cd-field"><div class="k">选项</div>${optOverview}</div>
+            `);
+
+            // 第 2..N 页：每个选项详情
+            optKeys.forEach(k => {
+                const o = card.options[k];
+                pages.push(`
+                    <h4>选项 ${k}</h4>
+                    ${field('做法', o.text)}
+                    ${field('后果', o.consequence)}
+                    <div class="cd-field"><div class="k">五力影响</div>${attrTagsHtml(o.attributeEffects)}</div>
+                    ${field('评分理由', o.reason)}
+                `);
+            });
+
+            // 末页：白皮书 + 培训资料
+            const tm = card.trainerMaterial || {};
+            pages.push(`
+                <h4>延伸学习</h4>
+                ${field('子主题', card.subtopic)}
+                ${field('📖 白皮书索引', card.whitepaperRef)}
+                ${field('🎓 导师索引', tm.mentorIndex)}
+                ${field('📝 带领笔记', tm.trainerNotes)}
+                ${field('💡 补充案例', tm.extraCases)}
+                ${field('引导语', card.guide_text)}
+                ${field('属性总说明', card.attribute_reason)}
+            `);
+
+            track.innerHTML = pages.map(p => `<div class="cd-page">${p}</div>`).join('');
+            dots.innerHTML = pages.map((_, i) => `<div class="cd-dot${i === 0 ? ' active' : ''}"></div>`).join('');
+            track.scrollLeft = 0;
+            document.getElementById('cd-overlay').classList.add('show');
+            if (window._cdSyncNav) window._cdSyncNav();
+        }
+
+        // 翻页：指示点 + 左右箭头跟随滚动
+        (function () {
+            const track = document.getElementById('cd-track');
+            const prev = document.getElementById('cd-prev');
+            const next = document.getElementById('cd-next');
+            function sync() {
+                const idx = Math.round(track.scrollLeft / track.clientWidth);
+                const last = track.children.length - 1;
+                document.querySelectorAll('#cd-dots .cd-dot').forEach((d, i) =>
+                    d.classList.toggle('active', i === idx));
+                prev.disabled = idx <= 0;
+                next.disabled = idx >= last;
+            }
+            track.addEventListener('scroll', sync);
+            prev.onclick = () => track.scrollBy({ left: -track.clientWidth, behavior: 'smooth' });
+            next.onclick = () => track.scrollBy({ left: track.clientWidth, behavior: 'smooth' });
+            window._cdSyncNav = sync; // 打开卡牌后初始化箭头状态
+        })();
+
+        document.getElementById('cd-close').onclick = () =>
+            document.getElementById('cd-overlay').classList.remove('show');
+        document.getElementById('cd-overlay').onclick = (e) => {
+            if (e.target.id === 'cd-overlay') e.currentTarget.classList.remove('show');
+        };
+
+        // ===== 活动：开启 / 查询 =====
+        const ACT_STATUS = {
+            pending_approval: { txt: '待审核', cls: 'warn' },
+            active: { txt: '已通过', cls: 'ok' },
+            rejected: { txt: '已驳回', cls: 'danger' },
+            ended: { txt: '已结束', cls: 'warn' },
+            archived: { txt: '已归档', cls: 'danger' }
+        };
+
+        document.getElementById('apply-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const msgEl = document.getElementById('apply-msg');
+            const name = document.getElementById('apply-name').value.trim();
+            const location = document.getElementById('apply-location').value.trim();
+            if (!name) { showMsg(msgEl, '请填写活动名称', 'error'); return; }
+            try {
+                await api('api/activities/apply', { method: 'POST', body: { name, location } });
+                showMsg(msgEl, '申请已提交，请等待运营审核', 'success');
+                document.getElementById('apply-form').reset();
+                loadCreatedActivities(true);
+            } catch (err) {
+                showMsg(msgEl, err.message, 'error');
+            }
+        };
+
+        async function loadCreatedActivities(force) {
+            const el = document.getElementById('created-list');
+            if (!force && el.dataset.loaded) return;
+            try {
+                const { activities } = await api('api/me/activities/created');
+                el.dataset.loaded = '1';
+                if (!activities || activities.length === 0) {
+                    el.innerHTML = '<div class="empty-state">还没有发起过活动</div>';
+                    return;
+                }
+                el.innerHTML = activities.map(a => {
+                    const st = ACT_STATUS[a.status] || { txt: a.status, cls: 'warn' };
+                    const codeHtml = a.status === 'active'
+                        ? `<span style="font-weight:600;color:#667eea;">${esc(a.activity_code)}</span>
+                           <button class="btn" style="padding:2px 10px;font-size:12px;margin-left:8px;" onclick="copyCode('${esc(a.activity_code)}')">复制</button>`
+                        : `<span style="color:#bbb;">审核通过后可用</span>`;
+                    return `
+                        <div class="session-item">
+                            <div class="session-header">
+                                <span class="info-value">${esc(a.name)}</span>
+                                <span class="badge ${st.cls}">${st.txt}</span>
+                            </div>
+                            <div class="session-meta">${formatTime(a.created_at).slice(0,10)} · ${a.table_count || 0} 桌 · ${codeHtml}</div>
+                        </div>`;
+                }).join('');
+            } catch (e) {
+                el.innerHTML = `<div class="msg error">${esc(e.message)}</div>`;
+            }
+        }
+
+        function copyCode(code) {
+            navigator.clipboard?.writeText(code);
+            alert('已复制活动码：' + code);
+        }
+
+        document.getElementById('lookup-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const msgEl = document.getElementById('lookup-msg');
+            const out = document.getElementById('lookup-result');
+            const code = document.getElementById('lookup-code').value.trim().toUpperCase();
+            out.innerHTML = '';
+            if (!code) { showMsg(msgEl, '请输入活动码', 'error'); return; }
+            showMsg(msgEl, '查询中...', 'success');
+            try {
+                const { activity, sessions } = await api('api/activities/by-code/' + encodeURIComponent(code) + '?withSessions=1');
+                msgEl.textContent = '';
+                const rows = (sessions || []).map(s =>
+                    `<div class="info-row">
+                        <span class="info-label">${s.table_no} 桌 · ${esc(s.guardian_name || '守望师')}</span>
+                        <span class="info-value">${s.final_score != null ? s.final_score + ' 分' : '进行中'}</span>
+                    </div>`).join('');
+                out.innerHTML = `
+                    <div style="margin-top:14px;">
+                        <div class="info-row"><span class="info-label">活动名称</span><span class="info-value">${esc(activity.name)}</span></div>
+                        <div class="info-row"><span class="info-label">主办</span><span class="info-value">${esc(activity.organizer || '-')}</span></div>
+                        <div class="info-row"><span class="info-label">活动码</span><span class="info-value">${esc(activity.activity_code)}</span></div>
+                        <div class="info-row"><span class="info-label">参与桌数</span><span class="info-value">${(sessions || []).length} 桌</span></div>
+                        ${rows ? '<div style="margin-top:6px;font-size:12px;color:#999;">桌次成绩</div>' + rows : ''}
+                    </div>`;
             } catch (err) {
                 showMsg(msgEl, err.message, 'error');
             }

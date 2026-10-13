@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import { dbGet, dbRun, getSystemSetting } from "../db.js";
 import { config } from "../config.js";
 import { signToken, authMiddleware } from "../middleware/auth.js";
-import { rotateSession, revokeSession } from "../services/sessions.js";
+import { rotateSession, revokeSession, revokeUserSessions } from "../services/sessions.js";
 import { normalizePhone, sendCode, verifyCode } from "../services/sms.js";
 import { verifyCaptcha } from "../services/captcha.js";
 import { resolveValidity } from "../account.js";
@@ -108,33 +108,13 @@ router.post("/api/auth/dev-login", async (req, res) => {
   res.json({ user: { id: user.id, username: user.username, role: user.role, isProfileComplete: true }, token });
 });
 
-// ======== 管理后台手机号登录（仅 boss/operator，无需验证码）========
-router.post("/api/auth/admin-login", async (req, res) => {
-  const phone = normalizePhone(req.body?.phone || "");
-  if (!phone) return res.status(400).json({ error: "缺少手机号" });
-
-  const user = await dbGet(
-    "SELECT id, phone, username, guardian_name, role, enterprise_id FROM users WHERE phone = ?",
-    [phone]
-  );
-  if (!user) return res.status(404).json({ error: "用户不存在" });
-
-  const allowedRoles = ["boss", "operator"];
-  if (!allowedRoles.includes(user.role)) {
-    return res.status(403).json({ error: "⛔ 仅 boss 和运营账号可登录管理后台" });
-  }
-
-  const token = await issueSession(req, { id: user.id, username: user.phone || user.username, role: user.role, enterprise_id: user.enterprise_id });
-  res.json({
-    user: {
-      id: user.id,
-      username: user.username || user.phone,
-      phone: user.phone,
-      guardianName: user.guardian_name,
-      role: user.role,
-      isProfileComplete: true,
-    },
-    token,
+// WQT-007: retire the passwordless admin bypass for every HTTP method.
+// Current Vue admin UI already uses password + SMS through /api/auth/login.
+router.all("/api/auth/admin-login", (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.status(410).json({
+    error: "此登录方式已关闭，请使用密码和短信验证码登录",
+    code: "ADMIN_LOGIN_CLOSED",
   });
 });
 
@@ -177,6 +157,34 @@ router.post("/api/auth/sms/verify", async (req, res) => {
   const v = await verifyCode(phone, code, { consume: false });
   if (!v.ok) return res.status(400).json({ error: v.error });
   res.json({ ok: true });
+});
+
+// ======== 忘记密码：手机号 + 验证码 重置密码 ========
+// 前端流程：先调 /api/auth/sms/send 拿验证码，再带 phone+code+password 调本接口。
+// 要求：手机号必须为已注册账号，验证码校验通过后才允许修改密码。
+router.post("/api/auth/reset-password", async (req, res) => {
+  const phone = normalizePhone(req.body?.phone || "");
+  const { code, password } = req.body || {};
+  if (!phone) return res.status(400).json({ error: "请输入手机号" });
+  if (!code) return res.status(400).json({ error: "请输入验证码" });
+  if (!password || String(password).length < 6) {
+    return res.status(400).json({ error: "新密码至少 6 位" });
+  }
+
+  // ① 手机号必须是已有账号
+  const user = await dbGet("SELECT id, phone FROM users WHERE phone = ?", [phone]);
+  if (!user) return res.status(404).json({ error: "该手机号未注册，请检查后重试或注册新账号" });
+
+  // ② 验证码校验（消费，防重放）
+  const v = await verifyCode(phone, String(code).trim(), { consume: true });
+  if (!v.ok) return res.status(400).json({ error: v.error || "验证码错误" });
+
+  // ③ 更新密码 + 撤销所有在线会话（强制用新密码重新登录）
+  const hash = bcrypt.hashSync(String(password), 10);
+  await dbRun("UPDATE users SET password_hash = ? WHERE id = ?", [hash, user.id]);
+  await revokeUserSessions(user.id);
+
+  res.json({ ok: true, message: "密码已重置，请用新密码登录" });
 });
 
 // ======== 登出：撤销当前会话 ========

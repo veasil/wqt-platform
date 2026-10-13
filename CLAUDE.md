@@ -43,9 +43,10 @@ wqt-auth-backend/
 │   ├── middleware/        # auth.js（JWT 校验）、rbac.js（角色/组织权限）
 │   ├── services/          # sessions.js（单设备会话）、sms.js（短信验证码）
 │   └── routes/            # auth.routes.js（认证）、account-admin.routes.js（账号资产）
-├── admin-panel/
-│   ├── app.py             # Streamlit 管理后台（含组织管理页面）
-│   └── db_utils.py        # 直连 wqt.db 的查询工具，含 AES 解密
+├── admin-web/
+│   ├── index.html
+│   ├── src/
+│   └── package.json
 ├── enterprise-panel/      # 组织管理员 Vue 3 SPA
 │   ├── vite.config.js     # base: '/enterprise/', proxy→8080
 │   ├── src/views/         # Dashboard/Members/Activities/Sessions/InviteCodes/Settings
@@ -63,7 +64,6 @@ wqt-auth-backend/
 │   ├── wqt.db             # 主数据库
 │   └── cards.db           # 卡牌数据库（独立，可切换数据源）
 ├── scripts/               # 部署脚本、迁移脚本、nginx 配置
-├── implementation_plan.md # 当前迭代详细规划（Task 1-6）
 └── .env                   # 环境变量（不提交）
 ```
 
@@ -169,6 +169,7 @@ card_groups (卡牌组/版本套装，绑定 cards_released 快照)
       POST /api/auth/sms/send（发码）  POST /api/auth/sms/verify（仅预校验，不签发 token）
       POST /api/auth/dev-login|admin-login|logout|register（默认关闭）
       POST /api/auth/register-with-invite（邀请码注册）
+      POST /api/auth/reset-password（忘记密码：手机号须为已注册账号 + 验证码 → 改密 + 踢下线）
       ⚠️ /api/auth/wechat/* 已删除（无微信通道）
 账号资产（boss, src/routes/account-admin.routes.js）：
       PUT /api/admin/organizations/:id/validity   PUT /api/admin/users/:id/validity
@@ -192,6 +193,7 @@ card_groups (卡牌组/版本套装，绑定 cards_released 快照)
 OSS：GET  /api/admin/oss/files   DELETE /api/admin/oss/files
 上传：POST /api/upload/audio|report
 LLM：POST /api/llm/story   POST /api/admin/generate-card
+      POST /api/llm/image（文生图，DashScope 通义万相异步轮询，返回 base64 dataUri；未配 KEY 返 501，前端优雅降级）
 设置：GET  /api/settings
 ```
 
@@ -311,3 +313,30 @@ admin-panel 显示时统一转北京时间（UTC+8，`BEIJING_TZ`）。
 **根因**: `startGameWithConfig` 把 `currentPhase` 写死为 `'启蒙期'`，`resetAttributes` 也硬编码 启蒙期/成长期/青春期 三阶段阈值。
 **修复**: 起始阶段改取 `cardsPerPhase` 中第一个数量>0 的阶段；`resetAttributes` 按 `cardsPerPhase` 配置顺序累计阈值回退（`index.html:2119`、`2200-2212`）。
 **关键点**: 阶段顺序/数量一律以本局 `cardsPerPhase`（模式分布）为准遍历，不要在逻辑里写死阶段名；`checkPhaseCompletion` 已是配置驱动可参考。
+
+---
+
+### 🔧 [2026-06-06] PG 迁移后活动码唯一约束冲突
+
+**现象**: 企业面板新建活动报 `duplicate key value violates unique constraint "activities_activity_code_key"`。
+**根因**: `generateActivityCode()`（`server.js:1921`）用全局 `MAX(id)+1` 拼活动码，隐含「id 序号==活动码序号」假设；SQLite→PG 迁移后 id 序列重排 + 历史删除留空洞，算出的 `ACT-00X` 撞上已存在的码，且函数无任何唯一性校验。
+**修复**: 改为从现有 `activity_code` 解析真实最大序号，逐个递增并 `SELECT` 校验唯一后返回，带时间戳兜底——与 id 序列彻底解耦（`server.js:1921`）。
+**关键点**: 业务唯一码不要用 `MAX(id)+1` 这种依赖自增序列的方式生成；迁移到 PG 后凡是「靠 id 推导其它值」的逻辑都要重新审视（序列/删除空洞会打破假设）。参考 `generateInviteCode` 的「随机+查重循环」范式。
+
+---
+
+### 🔧 [2026-06-06] 短信发码限流只在 mock 分支
+
+**现象**: 配了 Bmob 的生产环境，短信发送接口零防护，换手机号即可无限刷（轰炸 + 话费欺诈）。
+**根因**: `src/services/sms.js` 的 60s 重发间隔只写在 `!bmobSMS`（开发模拟）分支里；真实 `bmobSMS.sendSmsCode` 分支没有任何限流/人机校验。
+**修复**: 把限流抽成 `checkSendQuota(phone, ip)` 前置守卫，对 mock 与 Bmob 两个分支统一生效（同号 60s/每日≤10、同 IP 每小时≤20）；新增 `src/services/captcha.js`（腾讯天御 TC3 签名，`CAPTCHA_ENABLED` 开关）；`server.js` 设 `trust proxy` 让 `req.ip` 取真实 IP。
+**关键点**: 防护逻辑（限流/鉴权）必须放在 mock 与真实分支的**公共前置路径**，不能只挂在某一分支；新增「生产才走」的分支时，回头检查开发分支里的防护是否也要带过去。内存限流默认单实例，多副本需换 Redis。
+
+---
+
+### 🔧 [2026-06-24] TDZ 静默吞掉导致全部系统设置回退默认
+
+**现象**: 后台把 `REVIEW_MIN_CARDS` 改成 4，复盘已按 4 张生效，但 `index.html` 自由版仍显示/要求「不少于 7 张」。控制台报 `Cannot access 'systemSettings'/'setupData' before initialization`、`Failed to load system settings`、`Failed to parse GAME_MODES`。
+**根因**: `index.html` 的 `window.addEventListener('load')` 回调里，`await loadSystemSettings()` 在前，而它（及其调用的 `renderGameModes`）用到的 `let systemSettings`/`let setupData` 声明在后——函数声明被提升可被早调用，但 `let` 此刻仍在**暂时性死区(TDZ)**，访问即抛错。异常被 `loadSystemSettings` 的 `catch` 静默吞掉，`systemSettings` 留空 `{}`，所有读设置处 `parseInt(undefined)||7` 回退默认。`game-review.js` 独立读设置故不受影响，造成「复盘 4、自由版 7」的分裂假象。
+**修复**: 把 `systemSettings`、`setupData` 两个声明前移到 `await loadSystemSettings()` 调用之前（与既有 `authState` 同样处理），删除原处重复声明（`index.html:509-537`、原 593/1984 行）。
+**关键点**: 凡是会被**初始化期早调用链**（`loadSystemSettings → renderGameModes → globalState.initialize`）触达的 `let/const`，必须声明在调用点之前；函数声明会提升、`let/const` 不会。排查时把"早执行链"完整列一遍（哪些函数在 await 期间真正被调用、各自引用哪些后置绑定），一次性前移，别逐个打地鼠。另：`try/catch` 把初始化异常静默吞掉时，**所有** system 参数（BRANDING/GAME_MODES/ATTRIBUTES_CONFIG/REVIEW_MIN_CARDS）会一起回退默认，只是恰好和默认值相同的项不易察觉。

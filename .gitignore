@@ -42,3 +42,9 @@ walkthrough.md
 /test/
 test_llms.py
 tmp_adminweb.png
+
+# 规则视频重做工作台（素材/产物体积大，本地保留不进库）
+video/
+
+# 复盘报告生成样张（产物，按需本地查看）
+复盘报告样张.html

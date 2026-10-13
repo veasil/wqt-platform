@@ -1,4 +1,5 @@
 import express from "express";
+import { registerDownloadRoutes } from "./src/platform/downloads/routes.js";
 import cors from "cors";
 import morgan from "morgan";
 import dotenv from "dotenv";
@@ -15,6 +16,7 @@ import { BmobSMS } from "./src/bmob.js";
 import { config, decryptVal, loadConfig } from "./src/config.js";
 import { authMiddleware } from "./src/middleware/auth.js";
 import { requireRole, requireEnterprise } from "./src/middleware/rbac.js";
+import { resolveValidity } from "./src/account.js";
 import { normalizePhone, initSms } from "./src/services/sms.js";
 import authRouter from "./src/routes/auth.routes.js";
 import accountAdminRouter from "./src/routes/account-admin.routes.js";
@@ -178,6 +180,9 @@ const upload = multer({
 app.set("trust proxy", 1);
 
 app.use(morgan("dev"));
+// 复盘报告内嵌大量 base64 图片（卡面/插画/品牌 banner），单独放宽该路由的 body 上限；
+// 其余接口仍走 2mb 全局限制（此中间件先于全局解析，express.json 解析后会 skip 重复解析）。
+app.use("/api/upload/report", express.json({ limit: "16mb" }));
 app.use(express.json({ limit: "2mb" }));
 
 // 本地开发：同域访问最省事；如果你前后端分离，这里把 origin 改成你的前端地址
@@ -235,6 +240,9 @@ app.get("/api/me", authMiddleware, async (req, res) => {
     );
     if (!user) return res.status(404).json({ error: "用户不存在" });
 
+    // 会员期限：组织成员跟随组织、独立用户用自身 valid_until（resolveValidity 统一判定）
+    const validity = await resolveValidity(req.user.uid);
+
     res.json({
       user: {
         id: user.id,
@@ -245,7 +253,10 @@ app.get("/api/me", authMiddleware, async (req, res) => {
         isProfileComplete: !!user.guardian_name,
         role: user.role || 'watcher',
         watcherLevel: user.watcher_level || 'initial',
-        enterpriseId: user.enterprise_id || null
+        enterpriseId: user.enterprise_id || null,
+        validUntil: validity.until ?? null,
+        validityValid: validity.valid,
+        validitySource: user.enterprise_id ? 'org' : 'user'
       }
     });
   } catch (e) {
@@ -266,6 +277,25 @@ app.get("/api/me/activities", authMiddleware, async (req, res) => {
       JOIN game_sessions gs ON gs.id = as2.session_id
       WHERE gs.user_id = ?
       ORDER BY gs.started_at DESC
+    `, [uid]);
+    res.json({ activities: rows });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 我发起/申请的活动（含审核状态）。status: pending_approval | active | ...
+app.get("/api/me/activities/created", authMiddleware, async (req, res) => {
+  const uid = req.user.uid;
+  try {
+    const rows = await dbAll(`
+      SELECT a.id, a.name, a.organizer, a.activity_code, a.started_at, a.ended_at, a.status, a.created_at,
+             COUNT(DISTINCT as2.session_id) as table_count
+      FROM activities a
+      LEFT JOIN activity_sessions as2 ON as2.activity_id = a.id
+      WHERE a.created_by = ?
+      GROUP BY a.id
+      ORDER BY a.created_at DESC
     `, [uid]);
     res.json({ activities: rows });
   } catch (e) {
@@ -859,7 +889,7 @@ app.post("/api/enterprise/activities", authMiddleware, requireEnterprise, async 
   const { name, organizer, started_at, ended_at } = req.body || {};
   if (!name) return res.status(400).json({ error: "活动名称不能为空" });
   try {
-    const code = await generateActivityCode();
+    const code = await generateActivityCode('enterprise');
     const result = await dbRun(
       "INSERT INTO activities(name, organizer, activity_code, started_at, ended_at, created_by, enterprise_id) VALUES(?,?,?,?,?,?,?)",
       [name, organizer || null, code, started_at || null, ended_at || null, req.user.uid, req.org.id]
@@ -1122,6 +1152,79 @@ app.get("/api/cards", async (req, res) => {
     res.json({ cards: cards.map(formatReleasedCard) });
   } catch (e) {
     res.status(500).json({ error: "Failed to fetch cards: " + e.message });
+  }
+});
+
+// 1a-study. 守望学习：在 /api/cards 基础上回连 cards 表补全
+// subtopic / whitepaper_ref / trainer_material_json（培训资料，未进发布快照）。
+async function enrichWithStudyFields(releasedRows) {
+  const cards = releasedRows.map(formatReleasedCard);
+  const cardIds = [...new Set(releasedRows.map(r => r.card_id).filter(Boolean))];
+  if (cardIds.length === 0) return cards;
+  const ph = cardIds.map(() => "?").join(",");
+  const extra = await cardsDbAll(
+    `SELECT id, subtopic, whitepaper_ref, trainer_material_json FROM cards WHERE id IN (${ph})`,
+    cardIds
+  );
+  const byId = new Map(extra.map(e => [e.id, e]));
+  return cards.map(c => {
+    const e = byId.get(c.id);
+    let tm = null;
+    if (e && e.trainer_material_json) {
+      try {
+        const j = JSON.parse(e.trainer_material_json);
+        tm = {
+          mentorIndex: j.mentor_index || "",
+          trainerNotes: j.trainer_notes || "",
+          extraCases: j.extra_cases || ""
+        };
+      } catch (_) {}
+    }
+    return {
+      ...c,
+      subtopic: e?.subtopic || null,
+      whitepaperRef: e?.whitepaper_ref || null,
+      trainerMaterial: tm
+    };
+  });
+}
+
+// 守望学习为会员权益：authMiddleware 内含 resolveValidity，无会员/已到期/被停用直接 403
+app.get("/api/cards/study", authMiddleware, async (req, res) => {
+  try {
+    let groupId = req.query.group_id ? Number(req.query.group_id) : null;
+    if (!groupId) {
+      const def = await cardsDbGet("SELECT id FROM card_groups WHERE is_default = 1 LIMIT 1");
+      if (def) groupId = def.id;
+    }
+
+    let rows;
+    if (groupId) {
+      const group = await cardsDbGet("SELECT * FROM card_groups WHERE id = ?", [groupId]);
+      if (!group) return res.status(404).json({ error: "卡牌组不存在" });
+      let ids = [];
+      try { ids = JSON.parse(group.released_ids_json || "[]"); } catch (_) {}
+      if (ids.length === 0) return res.json({ cards: [], group: { id: group.id, name: group.name } });
+      const ph = ids.map(() => "?").join(",");
+      const fetched = await cardsDbAll(`SELECT * FROM cards_released WHERE id IN (${ph})`, ids);
+      const byId = new Map(fetched.map(r => [r.id, r]));
+      rows = ids.map(i => byId.get(i)).filter(Boolean);
+      const cards = await enrichWithStudyFields(rows);
+      return res.json({ cards, group: { id: group.id, name: group.name } });
+    }
+
+    // 回退：每个 key 最新快照
+    rows = await cardsDbAll(`
+      SELECT cr.* FROM cards_released cr
+      INNER JOIN (
+        SELECT key, MAX(released_at) as max_t FROM cards_released GROUP BY key
+      ) latest ON cr.key = latest.key AND cr.released_at = latest.max_t
+      ORDER BY cr.key ASC
+    `);
+    const cards = await enrichWithStudyFields(rows);
+    res.json({ cards });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch study cards: " + e.message });
   }
 });
 
@@ -1725,7 +1828,7 @@ app.post("/api/llm/story", authMiddleware, async (req, res) => {
   if (!prompt) return res.status(400).json({ error: "缺少 prompt" });
 
   const rawMaxTokens = Number(req.body?.max_tokens);
-  const maxTokens = Number.isFinite(rawMaxTokens) ? Math.min(Math.max(rawMaxTokens, 200), 4000) : 1200;
+  const maxTokens = Number.isFinite(rawMaxTokens) ? Math.min(Math.max(rawMaxTokens, 200), 8000) : 1200;
   const rawTemperature = Number(req.body?.temperature);
   const temperature = Number.isFinite(rawTemperature) ? Math.min(Math.max(rawTemperature, 0), 1.2) : 0.7;
 
@@ -1834,6 +1937,100 @@ app.post("/api/llm/story", authMiddleware, async (req, res) => {
   } catch (e) {
     console.error(`LLM Network Error:`, e);
     res.status(502).json({ error: "LLM 网络请求失败" });
+  }
+});
+
+// ======== API: 文生图（复盘报告插画 / banner）========
+// 使用阿里云 DashScope 通义万相（异步任务 + 轮询），下载结果图返回 base64 data URI，
+// 便于前端 html2canvas 导出海报时无跨域问题。未配置 KEY 时返回 501，让前端优雅降级。
+app.post("/api/llm/image", authMiddleware, async (req, res) => {
+  const prompt = (req.body?.prompt || "").toString().trim();
+  if (!prompt) return res.status(400).json({ error: "缺少 prompt" });
+
+  const size = (req.body?.size || "1024*1024").toString();
+  // 兼容前端可能传 "1024x1024" 的写法
+  const normSize = size.replace("x", "*");
+
+  try {
+    let kRow = await dbGet("SELECT value FROM system_settings WHERE key = 'DASHSCOPE_API_KEY'");
+    const apiKey = (kRow && kRow.value) ? decryptVal(kRow.value) : process.env.DASHSCOPE_API_KEY;
+    if (!apiKey) {
+      return res.status(501).json({ error: "后端未配置 DASHSCOPE_API_KEY（生图功能不可用）" });
+    }
+
+    let mRow = await dbGet("SELECT value FROM system_settings WHERE key = 'DASHSCOPE_IMAGE_MODEL'");
+    const model = (mRow && mRow.value) ? mRow.value : (process.env.DASHSCOPE_IMAGE_MODEL || "wanx2.1-t2i-turbo");
+
+    // 1) 创建异步任务
+    const createResp = await fetch(
+      "https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+          "X-DashScope-Async": "enable"
+        },
+        body: JSON.stringify({
+          model,
+          input: { prompt },
+          parameters: { size: normSize, n: 1 }
+        })
+      }
+    );
+
+    if (!createResp.ok) {
+      const t = await createResp.text().catch(() => "");
+      console.error(`生图任务创建失败: ${createResp.status} - ${t}`);
+      return res.status(502).json({ error: `生图任务创建失败(${createResp.status})` });
+    }
+
+    const createData = await createResp.json();
+    const taskId = createData?.output?.task_id;
+    if (!taskId) {
+      return res.status(502).json({ error: "生图任务未返回 task_id" });
+    }
+
+    // 2) 轮询任务结果（最多 ~60s）
+    let imageUrl = "";
+    const deadline = Date.now() + 60000;
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 2500));
+      const pollResp = await fetch(`https://dashscope.aliyuncs.com/api/v1/tasks/${taskId}`, {
+        headers: { "Authorization": `Bearer ${apiKey}` }
+      });
+      if (!pollResp.ok) continue;
+      const pollData = await pollResp.json();
+      const status = pollData?.output?.task_status;
+      if (status === "SUCCEEDED") {
+        imageUrl = pollData?.output?.results?.[0]?.url || "";
+        break;
+      }
+      if (status === "FAILED" || status === "UNKNOWN") {
+        const msg = pollData?.output?.message || "生图任务失败";
+        return res.status(502).json({ error: msg });
+      }
+    }
+
+    if (!imageUrl) {
+      return res.status(504).json({ error: "生图超时，请稍后重试" });
+    }
+
+    // 3) 下载图片转 base64 data URI（规避 html2canvas 跨域）
+    const imgResp = await fetch(imageUrl);
+    if (!imgResp.ok) {
+      // 拿不到图就直接把远程 URL 返回，前端自行决定是否使用
+      return res.json({ ok: true, url: imageUrl, dataUri: "" });
+    }
+    const arrayBuf = await imgResp.arrayBuffer();
+    const contentType = imgResp.headers.get("content-type") || "image/png";
+    const base64 = Buffer.from(arrayBuf).toString("base64");
+    const dataUri = `data:${contentType};base64,${base64}`;
+
+    res.json({ ok: true, url: imageUrl, dataUri });
+  } catch (e) {
+    console.error("生图接口异常:", e);
+    res.status(502).json({ error: "生图网络请求失败" });
   }
 });
 
@@ -1957,25 +2154,32 @@ app.delete("/api/admin/oss/files", authMiddleware, async (req, res) => {
 
 // ======== API: 活动管理 ========
 
-// 生成活动码 ACT-001 格式
-async function generateActivityCode() {
-  // 序号基于已有 activity_code 解析，而非 MAX(id)：
-  // id 自增序列在 SQLite→PG 迁移 / 行删除后会与 code 序号脱节，
-  // MAX(id)+1 可能撞到已存在的 code（违反 activities_activity_code_key 唯一约束）。
-  const rows = await dbAll("SELECT activity_code FROM activities WHERE activity_code LIKE 'ACT-%'");
-  let maxNum = 0;
-  for (const r of rows) {
-    const m = /^ACT-(\d+)$/.exec(r.activity_code || "");
-    if (m) maxNum = Math.max(maxNum, parseInt(m[1], 10));
-  }
-  // 从 maxNum+1 起逐个尝试，校验唯一后返回（防御历史脏数据 / 并发碰撞）
-  for (let n = maxNum + 1; n < maxNum + 1000; n++) {
-    const code = `ACT-${String(n).padStart(3, '0')}`;
+// 活动码品类前缀（1 位）。新增品类时在此登记即可。
+const ACTIVITY_CATEGORY_PREFIX = {
+  test: 'T',        // 测试活动
+  series: 'S',      // 系列活动
+  enterprise: 'E',  // 企业级活动
+  apply: 'A',       // 组织申请活动（pending_approval）
+  general: 'G',     // 普通/官方活动（默认）
+};
+
+// 生成活动码：<品类前缀1位><4位随机>，共 5 位（如 T7K9Q / E3M8X）。
+//   - 随机字符集去掉易混淆的 0/O/1/I；查询侧大小写不敏感（lookup 时 toUpperCase）。
+//   - 不再用顺序自增：避免可枚举猜测、不暴露活动总数，也绕开 id 序列脱节的唯一约束坑。
+//   - 历史 ACT-xxx 旧码不受影响（仍可按原值查询）。
+async function generateActivityCode(category = 'general') {
+  const prefix = ACTIVITY_CATEGORY_PREFIX[category] || ACTIVITY_CATEGORY_PREFIX.general;
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const bytes = crypto.randomBytes(4);
+    let rand = "";
+    for (let i = 0; i < 4; i++) rand += alphabet[bytes[i] % alphabet.length];
+    const code = prefix + rand;
     const exists = await dbGet("SELECT id FROM activities WHERE activity_code = ?", [code]);
     if (!exists) return code;
   }
-  // 极端兜底：时间戳后缀保证唯一
-  return `ACT-${Date.now().toString(36).toUpperCase()}`;
+  // 极小概率连续碰撞，回退加时间戳后缀保证唯一
+  return `${prefix}${Date.now().toString(36).toUpperCase()}`;
 }
 
 // 生成唯一邀请码：8 位大写字母+数字（去掉易混淆的 0/O/1/I），与 invite_codes.code 去重
@@ -2012,10 +2216,10 @@ app.get("/api/admin/activities", authMiddleware, async (req, res) => {
 });
 
 app.post("/api/admin/activities", authMiddleware, async (req, res) => {
-  const { name, organizer, started_at, ended_at } = req.body || {};
+  const { name, organizer, started_at, ended_at, category } = req.body || {};
   if (!name) return res.status(400).json({ error: "活动名称不能为空" });
   try {
-    const code = await generateActivityCode();
+    const code = await generateActivityCode(category || 'general');
     const result = await dbRun(
       "INSERT INTO activities(name, organizer, activity_code, started_at, ended_at, created_by) VALUES(?,?,?,?,?,?)",
       [name, organizer || null, code, started_at || null, ended_at || null, req.user.uid]
@@ -2065,7 +2269,7 @@ app.post("/api/game/join-activity", authMiddleware, async (req, res) => {
   const { activity_code, session_id } = req.body || {};
   if (!activity_code || !session_id) return res.status(400).json({ error: "缺少参数" });
   try {
-    const activity = await dbGet("SELECT * FROM activities WHERE activity_code = ? AND status = 'active'", [activity_code]);
+    const activity = await dbGet("SELECT * FROM activities WHERE activity_code = ? AND status = 'active'", [activity_code.toUpperCase()]);
     if (!activity) return res.status(404).json({ error: "活动码无效或活动已结束" });
 
     // 获取该活动当前最大桌号
@@ -2092,8 +2296,21 @@ app.get("/api/activities/by-code/:code", async (req, res) => {
       [code.toUpperCase()]
     );
     if (!activity) return res.status(404).json({ error: "活动码无效" });
-    if (activity.status !== 'active') return res.status(410).json({ error: "活动已结束" });
-    res.json({ activity });
+    if (activity.status !== 'active') return res.status(410).json({ error: "活动尚未开放或已结束" });
+
+    // ?withSessions=1：附带桌次成绩（守望师名+分数），供「查询活动」展示
+    let sessions = undefined;
+    if (req.query.withSessions) {
+      sessions = await dbAll(`
+        SELECT as2.table_no, u.guardian_name, gs.final_score, gs.ended_at
+        FROM activity_sessions as2
+        JOIN game_sessions gs ON gs.id = as2.session_id
+        JOIN users u ON u.id = gs.user_id
+        WHERE as2.activity_id = ?
+        ORDER BY as2.table_no ASC
+      `, [activity.id]);
+    }
+    res.json({ activity, sessions });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -2101,10 +2318,10 @@ app.get("/api/activities/by-code/:code", async (req, res) => {
 
 // 守望者创建活动（登录用户均可创建）
 app.post("/api/activities", authMiddleware, async (req, res) => {
-  const { name, location, started_at } = req.body || {};
+  const { name, location, started_at, category } = req.body || {};
   if (!name) return res.status(400).json({ error: "活动名称不能为空" });
   try {
-    const code = await generateActivityCode();
+    const code = await generateActivityCode(category || 'general');
     const result = await dbRun(
       "INSERT INTO activities(name, organizer, activity_code, started_at, created_by) VALUES(?,?,?,?,?)",
       [name, location || null, code, started_at || Date.now(), req.user.uid]
@@ -2120,7 +2337,7 @@ app.post("/api/activities/apply", authMiddleware, async (req, res) => {
   const { name, location, reason } = req.body || {};
   if (!name) return res.status(400).json({ error: "活动名称不能为空" });
   try {
-    const code = await generateActivityCode();
+    const code = await generateActivityCode('apply');
     const result = await dbRun(
       "INSERT INTO activities(name, organizer, activity_code, started_at, created_by, status) VALUES(?,?,?,?,?,?)",
       [name, location || null, code, Date.now(), req.user.uid, 'pending_approval']
@@ -2461,6 +2678,7 @@ app.post("/api/admin/cards/:id/release", authMiddleware, async (req, res) => {
 
 
 // ======== 登录 / 账号资产模块路由（已抽出到 src/routes/）========
+registerDownloadRoutes(app, { ossClient, upload });
 app.use(authRouter);
 app.use(accountAdminRouter);
 app.use(adminDataRouter);

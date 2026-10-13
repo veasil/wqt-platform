@@ -8,6 +8,7 @@
       </el-select>
       <el-button type="primary" @click="load">查询</el-button>
       <el-button type="success" @click="openCreate">新建用户</el-button>
+      <el-button @click="openInvites">🎟️ 邀请码</el-button>
       <span style="color:#909399">共 {{ total }} 人</span>
     </div>
 
@@ -93,13 +94,55 @@
         <el-button type="danger" :disabled="!deviceSessions.length" :loading="revoking" @click="forceLogout">强制下线</el-button>
       </template>
     </el-dialog>
+
+    <!-- 邀请码 -->
+    <el-dialog v-model="inviteDialog" title="🎟️ 邀请码管理" width="760px">
+      <el-form :inline="true" :model="inviteForm" class="invite-form">
+        <el-form-item label="可用次数">
+          <el-input-number v-model="inviteForm.maxUses" :min="1" :max="9999" />
+        </el-form-item>
+        <el-form-item label="有效期(天)">
+          <el-input-number v-model="inviteForm.expiresInDays" :min="1" :max="365" />
+        </el-form-item>
+        <el-form-item label="组织ID">
+          <el-input v-model="inviteForm.organizationId" placeholder="留空=通用码" style="width:140px" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :loading="inviteCreating" @click="genInvite">生成邀请码</el-button>
+        </el-form-item>
+      </el-form>
+
+      <el-table :data="invites" v-loading="inviteLoading" border size="small" max-height="380">
+        <el-table-column label="邀请码" width="200">
+          <template #default="{ row }">
+            <span style="font-family:monospace;font-weight:600">{{ row.code }}</span>
+            <el-button link type="primary" size="small" @click="copyCode(row.code)">复制</el-button>
+          </template>
+        </el-table-column>
+        <el-table-column label="类型" width="80">
+          <template #default="{ row }">
+            <el-tag size="small" :type="row.type === 'organization' ? 'warning' : 'info'">
+              {{ row.type === 'organization' ? '组织' : '通用' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="org_name" label="所属组织" width="120" />
+        <el-table-column label="使用" width="80">
+          <template #default="{ row }">{{ row.used_count || 0 }}/{{ row.max_uses }}</template>
+        </el-table-column>
+        <el-table-column label="有效期至" width="170">
+          <template #default="{ row }">{{ fmt(row.expires_at) }}</template>
+        </el-table-column>
+        <el-table-column prop="creator_name" label="创建人" />
+      </el-table>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { listUsers, createUser, updateUser, deleteUser, setUserValidity, getUserSessions, revokeUserSessions } from '../api/admin'
+import { listUsers, createUser, updateUser, deleteUser, setUserValidity, getUserSessions, revokeUserSessions, listInviteCodes, createInviteCode } from '../api/admin'
 import ValidityEditor from '../components/ValidityEditor.vue'
 import { PERMANENT_UNTIL, endOfDay, membershipTag } from '../utils/membership'
 
@@ -225,6 +268,41 @@ async function forceLogout() {
     deviceSessions.value = []
   } catch (e) { ElMessage.error(e.response?.data?.error || '操作失败') }
   finally { revoking.value = false }
+}
+
+// 邀请码
+const inviteDialog = ref(false)
+const invites = ref([])
+const inviteLoading = ref(false)
+const inviteCreating = ref(false)
+const inviteForm = reactive({ maxUses: 1, expiresInDays: 7, organizationId: '' })
+
+async function openInvites() {
+  inviteDialog.value = true
+  await loadInvites()
+}
+async function loadInvites() {
+  inviteLoading.value = true
+  try { const { data } = await listInviteCodes(); invites.value = data.codes || [] }
+  catch (e) { ElMessage.error(e.response?.data?.error || '加载邀请码失败') }
+  finally { inviteLoading.value = false }
+}
+async function genInvite() {
+  inviteCreating.value = true
+  try {
+    const { data } = await createInviteCode({
+      maxUses: inviteForm.maxUses,
+      expiresInDays: inviteForm.expiresInDays,
+      organizationId: inviteForm.organizationId || null
+    })
+    ElMessage.success('已生成邀请码：' + data.code)
+    await loadInvites()
+  } catch (e) { ElMessage.error(e.response?.data?.error || '生成失败') }
+  finally { inviteCreating.value = false }
+}
+async function copyCode(code) {
+  try { await navigator.clipboard.writeText(code); ElMessage.success('已复制：' + code) }
+  catch { ElMessage.warning('复制失败，请手动复制：' + code) }
 }
 
 onMounted(load)

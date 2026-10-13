@@ -65,6 +65,35 @@
     text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
+/* 卡牌印刷版卡面图 */
+.card-pdf-wrap {
+    margin-top: var(--space-lg);
+    width: 100%;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.25);
+    box-shadow: var(--shadow-lg);
+}
+
+.card-pdf-img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: var(--radius-lg);
+}
+
+.card-pdf-hint {
+    margin-top: var(--space-sm);
+    font-size: var(--font-size-base) !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    line-height: 1.6 !important;
+}
+
+.card-pdf-hint a {
+    color: #ffe08a;
+    text-decoration: underline;
+}
+
 .close {
     position: absolute;
     right: var(--space-md);
