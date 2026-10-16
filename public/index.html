@@ -40,6 +40,7 @@
 
     <!-- Lucide Icons（自托管，固定版本；避免国内网络访问 unpkg 超时导致图标缺失）-->
     <script src="js/lucide.min.js"></script>
+    <script src="account-access.js"></script>
 
     <!-- 保留兼容性（可选） -->
     <!-- <link rel="stylesheet" href="styles.css"> -->
@@ -88,6 +89,7 @@
                     </button>
                     <div id="user-badge" class="user-badge hidden">
                         <span id="user-name"></span>
+                        <button id="switch-account-btn" class="auth-btn secondary hidden">切换账号</button>
                         <a href="/my.html" id="my-page-link" class="auth-btn secondary" style="text-decoration:none;">个人中心</a>
                         <button id="logout-btn" class="auth-btn secondary">退出</button>
                     </div>
@@ -731,7 +733,14 @@
             async function api(path, { method = 'GET', body = null } = {}) {
                 const headers = { 'Content-Type': 'application/json' };
                 if (authState.token) headers['Authorization'] = `Bearer ${authState.token}`;
-                const res = await fetch(path, { method, headers, body: body ? JSON.stringify(body) : null });
+                if (body && /^api\/game\/(start|event|finish)$/.test(path) && !body.requestId) body.requestId = crypto.randomUUID();
+                const options = { method, headers, body: body ? JSON.stringify(body) : null };
+                let res;
+                try { res = await fetch(path, options); }
+                catch (error) {
+                    if (!body?.requestId) throw error;
+                    res = await fetch(path, options);
+                }
                 let data = null;
                 try { data = await res.json(); } catch (_) { }
                 if (!res.ok) {
@@ -749,6 +758,7 @@
                     userBadge.classList.remove('hidden');
                     const displayName = authState.user?.guardianName || authState.user?.username || '守望师';
                     userName.textContent = `Hi, ${displayName}`;
+                    document.getElementById('switch-account-btn').classList.toggle('hidden', !authState.user?.accountId);
                     newGameBtn.disabled = false;
                     newGameBtn.title = '';
                     if (myPageBtn) myPageBtn.style.display = 'inline-flex';
@@ -796,6 +806,20 @@
             }
 
             loginBtn.onclick = openAuthModal;
+            document.getElementById('switch-account-btn').onclick = async () => {
+                if (activeSessionId && !hasFinishedSession) { alert('请先完成当前场次，再切换账号'); return; }
+                try {
+                    const selected = await window.WqtAccounts.select(authState.token);
+                    authState.token = selected.token;
+                    authState.user = selected.user;
+                    localStorage.setItem('WQT_AUTH_TOKEN', selected.token);
+                    localStorage.setItem('WQT_USER_CACHE', JSON.stringify(selected.user));
+                    clearGameState();
+                    activeSessionId = null;
+                    if (window.GameReview) window.GameReview.setSessionId(null);
+                    setAuthUI(true);
+                } catch (error) { alert(error.message); }
+            };
             authClose.onclick = closeAuthModal;
             window.addEventListener('click', (event) => {
                 if (event.target === authModal) closeAuthModal();
@@ -875,10 +899,12 @@
                 loginSubmitBtn.textContent = '登录中...';
 
                 try {
-                    const ret = await api('api/auth/login', { method: 'POST', body: { phone, password, code } });
+                    let ret = await api('api/auth/login', { method: 'POST', body: { phone, password, code } });
+                    if (ret.requiresAccountSelection) ret = await window.WqtAccounts.select(ret.token, ret.accounts);
                     authState.token = ret.token;
                     authState.user = ret.user;
                     localStorage.setItem('WQT_AUTH_TOKEN', authState.token);
+                    localStorage.setItem('WQT_USER_CACHE', JSON.stringify(authState.user));
                     saveEnvMarkers();
 
                     if (!ret.user.isProfileComplete) {
@@ -1143,7 +1169,7 @@
                     document.getElementById('choice-display').innerHTML = '<p style="text-align:center;">✓ 游戏进度已恢复</p>';
 
                     if (window.GameReview && window.GameReview.setSessionId) {
-                        window.GameReview.setSessionId(activeSessionId);
+                        window.GameReview.setSessionId(activeSessionId, authState.token);
                     }
                     return true;
                 } catch (e) {
@@ -1983,6 +2009,7 @@
             document.getElementById('setup-back-btn').onclick = () => showSetupStep(1);
 
             // Start Game Confirm
+            let pendingStartInput = null;
             document.getElementById('setup-start-btn').onclick = async () => {
                 // Config based on mode
                 if (setupData.mode === 'free') {
@@ -2019,21 +2046,23 @@
                 Object.keys(cardTimeMarks).forEach(key => delete cardTimeMarks[key]);
 
                 try {
+                    const parameters = {
+                        location: setupData.location, players: setupData.players, mode: setupData.mode,
+                        settings: setupData.settings, cardGroupId: window.CURRENT_CARD_GROUP ? window.CURRENT_CARD_GROUP.id : null,
+                        activityCode: setupData.activityCode || null
+                    };
+                    const fingerprint = JSON.stringify([authState.user?.accountId, parameters]);
+                    if (!pendingStartInput || pendingStartInput.fingerprint !== fingerprint) pendingStartInput = {
+                        fingerprint, body: { ...parameters, ts: Date.now(), requestId: crypto.randomUUID() }
+                    };
                     const startRet = await api('api/game/start', {
                         method: 'POST',
-                        body: {
-                            ts: Date.now(),
-                            location: setupData.location,
-                            players: setupData.players,
-                            mode: setupData.mode,
-                            settings: setupData.settings,
-                            cardGroupId: window.CURRENT_CARD_GROUP ? window.CURRENT_CARD_GROUP.id : null,
-                            activityCode: setupData.activityCode || null
-                        }
+                        body: pendingStartInput.body
                     });
+                    pendingStartInput = null;
                     activeSessionId = startRet?.sessionId || null;
                     if (window.GameReview && window.GameReview.setSessionId) {
-                        window.GameReview.setSessionId(activeSessionId);
+                        window.GameReview.setSessionId(activeSessionId, authState.token);
                     }
                     if (window.GameReview && window.GameReview.recordEvent && activeSessionId) {
                         // 记录本局所用卡组/版本（与「查看卡牌」一致的展示名映射），供复盘报告标注「玩的是哪一版」

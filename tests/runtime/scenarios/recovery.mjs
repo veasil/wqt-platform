@@ -5,6 +5,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import pg from "pg";
 import { migrateSessionOwnership } from "../../../src/db/migrations/session-ownership.js";
+export {runTool,pgArgs};
 
 if (process.env.WQT_RUNTIME_TEST_CHILD !== "1")
   throw new Error("owned recovery harness required");

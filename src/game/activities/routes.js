@@ -4,8 +4,11 @@ import { sessionEndpoint } from "../sessions/routes.js";
 import { dbRun, dbGet, dbAll } from "../../db.js";
 import { authMiddleware } from "../../middleware/auth.js";
 import { generateActivityCode } from "./codes.js";
+import {accountModelEnabled} from '../../platform/accounts/model.js';
+import {registerAccountActivityRoutes} from '../../platform/accounts/activity.routes.js';
 
 export function registerActivityRoutes(app) {
+  if (accountModelEnabled()) return registerAccountActivityRoutes(app);
   app.get(
     "/api/admin/activities",
     authMiddleware,

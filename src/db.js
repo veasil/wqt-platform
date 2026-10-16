@@ -1,6 +1,10 @@
 import bcrypt from "bcryptjs";
 import { makePgApi, createPool } from "./sql-pg.js";
 import { migrateSessionOwnership } from "./db/migrations/session-ownership.js";
+import { migrateDownloads } from "./db/migrations/downloads.js";
+import { migratePlayer } from "./db/migrations/player.js";
+import { migrateAccounts } from "./db/migrations/accounts.js";
+import { accountModelEnabled } from "./platform/accounts/model.js";
 
 let pool;
 let api;
@@ -10,6 +14,7 @@ const NOW_MS = "(extract(epoch from now())*1000)::bigint";
 
 export async function initDb({ connectionString } = {}) {
   if (pool) throw new Error("Main database is already initialized; close it before restarting.");
+  const useAccounts=accountModelEnabled();
   // Resolve after the entry point has loaded its environment, not during import.
   const conn = connectionString || process.env.DATABASE_URL || process.env.PG_MAIN_URL ||
     "postgres://postgres:postgres@localhost:5432/wqt";
@@ -222,6 +227,9 @@ export async function initDb({ connectionString } = {}) {
   }
 
   await withTransaction(migrateSessionOwnership);
+  if (useAccounts) await withTransaction(migrateAccounts);
+  await migrateDownloads(dbRun);
+  if(useAccounts) await withTransaction(migratePlayer);
   console.log('✅ Main database initialized (PostgreSQL)');
 }
 

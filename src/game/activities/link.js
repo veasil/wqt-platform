@@ -10,7 +10,7 @@ export async function linkActivity(tx, session, activityCode) {
   );
   if (!activity) throw domainError(404, "活动不存在或已结束");
   if (
-    activity.enterprise_id &&
+    activity.enterprise_id != null &&
     (session.ownership_kind !== "organization" ||
       session.organization_id !== activity.enterprise_id)
   ) {

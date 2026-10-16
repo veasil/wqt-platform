@@ -29,3 +29,7 @@ jobs:
       - run: python -m playwright install --with-deps chromium
       - name: Browser contracts with fake HTTP and no database
         run: python tests/browser/verify-ui.py
+      - name: Platform delivery contracts with synthetic HTTP
+        run: python tests/browser/verify-admin-delivery.py
+      - name: Fixed renewal and operation recovery rules
+        run: node --test tests/admin-entitlements.test.mjs

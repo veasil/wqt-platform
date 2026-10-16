@@ -129,6 +129,11 @@ class PostgresCardsSource extends ICardsSource {
     `);
         await this.run(`CREATE INDEX IF NOT EXISTS idx_card_groups_default ON card_groups(is_default);`);
 
+        // Identity IDs and historical users.id are different namespaces, even when numerically equal.
+        for (const [table,column] of [['cards','author_identity_id'],['card_versions','author_identity_id'],['cards_released','released_by_identity_id'],['card_groups','created_by_identity_id']]) {
+            await this.run(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${column} BIGINT`);
+        }
+
         // 向后兼容：为已存在的表补 2026 卡牌包新增列（PG 9.6+ 支持 IF NOT EXISTS）
         const pgAdds = [
             ["cards", "card_code TEXT"],
@@ -266,6 +271,7 @@ class SQLiteCardsSource extends ICardsSource {
 
         // 向后兼容：添加可能缺失的列
         const missingColumns = [
+            { name: 'author_identity_id', def: 'INTEGER' },
             { name: 'status', def: 'TEXT DEFAULT "pending"' },
             { name: 'version', def: 'INTEGER DEFAULT 1' },
             { name: 'updated_at', def: 'INTEGER' },
@@ -289,6 +295,7 @@ class SQLiteCardsSource extends ICardsSource {
         ];
 
         const missingVersionColumns = [
+            { name: 'author_identity_id', def: 'INTEGER' },
             { name: 'author_id', def: 'INTEGER' },
             { name: 'audio_url', def: 'TEXT' },
             { name: 'note', def: 'TEXT' },
@@ -323,6 +330,7 @@ class SQLiteCardsSource extends ICardsSource {
 
         // card_groups 表补全缺失列
         const missingGroupColumns = [
+            { name: 'created_by_identity_id', def: 'INTEGER' },
             { name: 'max_scores_json', def: 'TEXT' }
         ];
         for (const col of missingGroupColumns) {
@@ -332,6 +340,7 @@ class SQLiteCardsSource extends ICardsSource {
         }
 
         const missingReleasedColumns = [
+            { name: 'released_by_identity_id', def: 'INTEGER' },
             { name: 'attribute_reason', def: 'TEXT' },
             { name: 'card_code', def: 'TEXT' },
             { name: 'title', def: 'TEXT' },

@@ -1,4 +1,7 @@
 import path from "path";
+import {withTransaction} from './db.js';
+import {remaining,applyAction} from './game/player/state.js';
+import {playerScore} from './game/player/settlement.js';
 import { preflightStartup, validateEffectiveConfiguration } from "./startup-guards.js";
 import fs from "fs";
 import OSS from "ali-oss";
@@ -10,6 +13,8 @@ import { closeDb } from "./db.js";
 import { closeCardsDb } from "./cards-db.js";
 import { createApp } from "./app.js";
 import { ROOT_DIR } from "./paths.js";
+import { accountModelEnabled } from "./platform/accounts/model.js";
+import { initIdentitySessions, closeIdentitySessions } from "./services/identity-sessions.js";
 async function initializeRuntime() {
   await initDb();
   await initCardsDb(); // 初始化独立卡牌数据库
@@ -161,11 +166,25 @@ async function cleanupStaleSessions() {
   const cutoff = Date.now() - 3 * 60 * 60 * 1000;
   try {
     const staleSessions = await dbAll(
-      "SELECT id FROM game_sessions WHERE ended_at IS NULL AND started_at < ?",
+      "SELECT * FROM game_sessions WHERE ended_at IS NULL AND started_at < ?",
       [cutoff],
     );
     if (!staleSessions || staleSessions.length === 0) return;
     for (const s of staleSessions) {
+      if(s.player_state_json){
+        await withTransaction(async tx=>{
+          const row=await tx.get('SELECT * FROM game_sessions WHERE id=? FOR UPDATE',[s.id]);
+          if(row.ended_at)return;
+          const state=JSON.parse(row.player_state_json);
+          if(state.ended||state.paused||remaining(state)>0)return;
+          const result=applyAction(state,{action:'finish',revision:state.revision},null);
+          const score=await playerScore(row,result.state.values);
+          Object.assign(result.payload,score,{reason:'timeout'});
+          await tx.run('UPDATE game_sessions SET ended_at=?,final_score=?,score_details_json=?,payload_json=?,player_state_json=?,status=? WHERE id=?',[result.state.endedAt,score.finalScore,JSON.stringify(score.scoreDetails),JSON.stringify({attributes:result.payload.attributes}),JSON.stringify(result.state),'auto_finished',row.id]);
+          await tx.run('INSERT INTO game_events(session_id,ts,type,payload) VALUES(?,?,?,?)',[row.id,Date.now(),'game_finish',JSON.stringify(result.payload)]);
+        });
+        continue;
+      }
       const eventCount = await dbGet(
         "SELECT COUNT(*) as cnt FROM game_events WHERE session_id = ?",
         [s.id],
@@ -234,10 +253,10 @@ function createOssClient(runtimeConfig) {
 }
 let activeRuntime = null;
 let startingRuntime = null;
-export async function startRuntime({ port, host } = {}) {
+export async function startRuntime({ port, host, storageClient } = {}) {
   if (activeRuntime || startingRuntime)
     throw new Error("Runtime is already running or starting");
-  startingRuntime = startRuntimeInternal({ port, host });
+  startingRuntime = startRuntimeInternal({ port, host, storageClient });
   try {
     activeRuntime = await startingRuntime;
     return activeRuntime;
@@ -245,14 +264,15 @@ export async function startRuntime({ port, host } = {}) {
     startingRuntime = null;
   }
 }
-async function startRuntimeInternal({ port, host } = {}) {
+async function startRuntimeInternal({ port, host, storageClient } = {}) {
   let server = null;
   let sessionTimer = null;
   let stopPromise = null;
   try {
     await preflightStartup();
+    if (accountModelEnabled()) await initIdentitySessions();
     await initializeRuntime();
-    const ossClient = createOssClient(config);
+    const ossClient = storageClient ?? createOssClient(config);
     const app = createApp({ runtimeConfig: config, ossClient });
     const listenPort = port ?? config.PORT ?? 8080;
     const listenHost = host ?? process.env.HOST ?? "0.0.0.0";
@@ -305,6 +325,7 @@ async function startRuntimeInternal({ port, host } = {}) {
       await release(() => stopSms());
       await release(() => closeCardsDb());
       await release(() => closeDb());
+      await release(() => closeIdentitySessions());
       if (activeRuntime?.server === server) activeRuntime = null;
       if (errors.length)
         throw new AggregateError(errors, "Runtime cleanup failed");

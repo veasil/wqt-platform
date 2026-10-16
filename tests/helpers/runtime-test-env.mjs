@@ -24,9 +24,9 @@ export function sanitizedChildEnv(overrides = {}) {
 
 export async function runNodeScript(
   source,
-  { env = {}, cwd = process.cwd(), timeoutMs = 30_000 } = {},
+  { env = {}, cwd = process.cwd(), timeoutMs = 30_000, nodeArgs = [] } = {},
 ) {
-  const child = spawn(process.execPath, ["--input-type=module", "-e", source], {
+  const child = spawn(process.execPath, [...nodeArgs, "--input-type=module", "-e", source], {
     cwd,
     env: sanitizedChildEnv(env),
     stdio: ["ignore", "pipe", "pipe"],

@@ -72,6 +72,8 @@ npm --prefix admin-web run dev
 
 `.env`、密钥、生产数据和 `_migration/` 导出不提交。外部功能尚未配置时，服务启动成功不等于短信、上传和 AI 已可用。
 
+本机受控玩家UAT默认使用隔离环境，不继承`.env`全部变量。需要真实短信时，为 `tests/manual/player-uat.mjs` 或保留已有数据的 `tests/manual/resume-player-uat.mjs` 显式增加 `--live-sms`，仅白名单载入Bmob两项配置；腾讯人机验证使用独立 `--live-captcha`。恢复已有库必须指定owned数据库并使用resume入口，不能用会在退出时清理资源的新建入口。`/api/auth/verification-options` 的 `smsMode` 表示live/mock/unavailable，仅说明服务配置，不代表手机收件或供应商额度已验证。参见[登录与视觉修订](../changes/WQT-006-account-permissions/login-visual-followup-20261016.md)。
+
 ## 自动验证
 
 `npm run lint` 检查模块入口与新提取代码的未定义变量；`npm run test:runtime` 覆盖导入副作用、路由顺序、运行生命周期与租户边界。PG 用例必须显式提供 `WQT_TEST_PG_ADMIN_URL`，它指向专用测试 PostgreSQL 实例中的管理员库，并具有创建/删除临时库权限。

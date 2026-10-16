@@ -1,10 +1,16 @@
-import { dbGet } from "../../db.js";
 import { cardsDbRun, cardsDbGet, cardsDbAll } from "../../cards-db.js";
 import { authMiddleware } from "../../middleware/auth.js";
+import { requireRole } from "../../middleware/rbac.js";
 import { ROOT_DIR } from "../../paths.js";
 import { promises as fsPromises } from "node:fs";
 import path from "node:path";
 import fetch from "node-fetch";
+
+// Platform content writes are authorized against the current database role.
+const manageCards = [authMiddleware, requireRole("boss")];
+const actorColumn = (req,legacy) => req.actor ? {
+  author_id:'author_identity_id',created_by:'created_by_identity_id',released_by:'released_by_identity_id'
+}[legacy]:legacy;
 
 export function registerCardRoutes(app) {
   // ======== API: Cards Management ========
@@ -128,8 +134,12 @@ export function registerCardRoutes(app) {
     });
   }
 
-  // 守望学习为会员权益：authMiddleware 内含 resolveValidity，无会员/已到期/被停用直接 403
+  // Only current paid entitlement grants study access; admin login exemption is not payment.
   app.get("/api/cards/study", authMiddleware, async (req, res) => {
+    const paid = req.account ? req.account.paid_valid : req.accountValidity?.valid &&
+      req.accountValidity.until != null && Number(req.accountValidity.until) > Date.now();
+    if (!paid) return res.status(403).json({error:'卡牌预习需要有效付费权益',code:'PAID_ENTITLEMENT_REQUIRED'});
+    res.set('Cache-Control','no-store');
     try {
       let groupId = req.query.group_id ? Number(req.query.group_id) : null;
       if (!groupId) {
@@ -287,7 +297,7 @@ export function registerCardRoutes(app) {
   });
 
   // 辅助：把沙盒 card_ids 解析为 released_ids；如该 card 当前 version 尚未发布，则自动 snapshot
-  async function resolveReleasedIdsFromCardIds(cardIds, releasedBy, label) {
+  async function resolveReleasedIdsFromCardIds(cardIds, releasedBy, label, releaseColumn='released_by') {
     const out = [];
     const now = Date.now();
     for (const cid of cardIds) {
@@ -315,7 +325,7 @@ export function registerCardRoutes(app) {
       // 新建快照
       const ins = await cardsDbRun(
         `INSERT INTO cards_released
-       (card_id, key, safety_type, event, phase, options_json, audio_url, attribute_reason, card_code, title, guide_text, version_label, from_version_id, released_by, released_at)
+       (card_id, key, safety_type, event, phase, options_json, audio_url, attribute_reason, card_code, title, guide_text, version_label, from_version_id, ${releaseColumn}, released_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           card.id,
@@ -380,7 +390,7 @@ export function registerCardRoutes(app) {
     return Object.keys(maxScores).length > 0 ? maxScores : null;
   }
 
-  app.post("/api/admin/card-groups", authMiddleware, async (req, res) => {
+  app.post("/api/admin/card-groups", manageCards, async (req, res) => {
     try {
       const { name, description, released_ids, card_ids, is_default } =
         req.body || {};
@@ -391,6 +401,7 @@ export function registerCardRoutes(app) {
           card_ids.map(Number).filter(Boolean),
           req.user.uid,
           `加入卡牌组：${name}`,
+          actorColumn(req,'released_by'),
         );
       } else if (Array.isArray(released_ids)) {
         ids = released_ids.map(Number).filter(Boolean);
@@ -399,7 +410,7 @@ export function registerCardRoutes(app) {
       const idsJson = JSON.stringify(ids);
       const maxScores = await computeMaxScoresForGroup(idsJson);
       const result = await cardsDbRun(
-        `INSERT INTO card_groups (name, description, released_ids_json, max_scores_json, is_default, created_by, created_at, updated_at)
+        `INSERT INTO card_groups (name, description, released_ids_json, max_scores_json, is_default, ${actorColumn(req,'created_by')}, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           name,
@@ -424,7 +435,7 @@ export function registerCardRoutes(app) {
     }
   });
 
-  app.put("/api/admin/card-groups/:id", authMiddleware, async (req, res) => {
+  app.put("/api/admin/card-groups/:id", manageCards, async (req, res) => {
     try {
       const id = Number(req.params.id);
       const existing = await cardsDbGet(
@@ -444,6 +455,7 @@ export function registerCardRoutes(app) {
           card_ids.map(Number).filter(Boolean),
           req.user.uid,
           `加入卡牌组：${newName}`,
+          actorColumn(req,'released_by'),
         );
         newIdsJson = JSON.stringify(resolved);
       } else if (Array.isArray(released_ids)) {
@@ -478,7 +490,7 @@ export function registerCardRoutes(app) {
     }
   });
 
-  app.delete("/api/admin/card-groups/:id", authMiddleware, async (req, res) => {
+  app.delete("/api/admin/card-groups/:id", manageCards, async (req, res) => {
     try {
       await cardsDbRun("DELETE FROM card_groups WHERE id = ?", [req.params.id]);
       res.json({ ok: true });
@@ -533,6 +545,7 @@ export function registerCardRoutes(app) {
         notes: c.notes || "[]",
         current_version_id: c.current_version_id || null,
         author_id: c.author_id || null,
+        author_identity_id: c.author_identity_id || null,
         updatedAt: c.updated_at,
         options: JSON.parse(c.options_json),
       }));
@@ -547,7 +560,7 @@ export function registerCardRoutes(app) {
   // 2. Generate card using LLM
   // fs already imported at top of file
 
-  app.post("/api/admin/generate-card", authMiddleware, async (req, res) => {
+  app.post("/api/admin/generate-card", manageCards, async (req, res) => {
     const { topic, content } = req.body;
     if (!topic && !content)
       return res.status(400).json({ error: "Missing topic or content" });
@@ -621,7 +634,7 @@ export function registerCardRoutes(app) {
   });
 
   // 3. Save a new card
-  app.post("/api/cards", authMiddleware, async (req, res) => {
+  app.post("/api/cards", manageCards, async (req, res) => {
     const card = req.body;
 
     // Basic validation
@@ -668,7 +681,7 @@ export function registerCardRoutes(app) {
         : null;
 
       const result = await cardsDbRun(
-        `INSERT INTO cards (key, safety_type, event, phase, options_json, attribute_reason, status, version, created_at, updated_at, author_id,
+        `INSERT INTO cards (key, safety_type, event, phase, options_json, attribute_reason, status, version, created_at, updated_at, ${actorColumn(req,'author_id')},
          card_code, workbench, title, guide_text, subtopic, whitepaper_ref, trainer_material_json)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
@@ -695,7 +708,7 @@ export function registerCardRoutes(app) {
 
       // 同时在 card_versions 建初版
       const versionResult = await cardsDbRun(
-        `INSERT INTO card_versions (card_id, key, safety_type, event, phase, options_json, attribute_reason, version, version_label, author_id, branch, created_at,
+        `INSERT INTO card_versions (card_id, key, safety_type, event, phase, options_json, attribute_reason, version, version_label, ${actorColumn(req,'author_id')}, branch, created_at,
          card_code, workbench, title, guide_text, subtopic, whitepaper_ref, trainer_material_json)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
@@ -735,7 +748,7 @@ export function registerCardRoutes(app) {
   });
 
   // 4. Update Card (沙盒自由编辑 / 状态变更)
-  app.put("/api/cards/:id", authMiddleware, async (req, res) => {
+  app.put("/api/cards/:id", manageCards, async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
 
@@ -832,25 +845,10 @@ export function registerCardRoutes(app) {
   });
 
   // 4.5 Bulk Release API (批量发布到游戏)
-  app.post(
-    "/api/admin/cards/bulk-release",
-    authMiddleware,
-    async (req, res) => {
-      const { cardIds, secretKey } = req.body;
+  const bulkReleaseHandler = async (req, res) => {
+      const { cardIds } = req.body;
       if (!cardIds || !Array.isArray(cardIds) || cardIds.length === 0) {
         return res.status(400).json({ error: "No cardIds provided" });
-      }
-
-      let devKey = process.env.DEV_KEY || "sj0127wqt";
-      try {
-        const sysDbRow = await dbGet(
-          "SELECT setting_value FROM system_settings WHERE setting_key = 'DEV_KEY'",
-        );
-        if (sysDbRow && sysDbRow.setting_value) devKey = sysDbRow.setting_value;
-      } catch (e) {}
-
-      if (secretKey !== devKey) {
-        return res.status(403).json({ error: "密钥不正确，拒绝发布！" });
       }
 
       try {
@@ -864,7 +862,7 @@ export function registerCardRoutes(app) {
 
           // 插入 cards_released 快照
           await cardsDbRun(
-            `INSERT INTO cards_released (card_id, key, safety_type, event, phase, options_json, audio_url, attribute_reason, version_label, from_version_id, released_by, released_at)
+            `INSERT INTO cards_released (card_id, key, safety_type, event, phase, options_json, audio_url, attribute_reason, version_label, from_version_id, ${actorColumn(req,'released_by')}, released_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               card.id,
@@ -900,40 +898,21 @@ export function registerCardRoutes(app) {
           .status(500)
           .json({ error: "Failed to bulk release cards: " + e.message });
       }
-    },
-  );
+    };
+  app.post('/api/admin/cards/bulk-release',manageCards,bulkReleaseHandler);
+  // Reuse the handler: changing req.url then next() cannot revisit an earlier Express route.
+  app.post('/api/admin/cards/bulk-publish',manageCards,bulkReleaseHandler);
 
-  // 兼容旧路由
-  app.post(
-    "/api/admin/cards/bulk-publish",
-    authMiddleware,
-    (req, res, next) => {
-      req.url = "/api/admin/cards/bulk-release";
-      next();
-    },
-  );
-
-  // 4.6 Bulk Upsert API (按 key upsert 卡牌到沙盒，含写版本，DEV_KEY 鉴权)
-  app.post("/api/admin/cards/bulk-upsert", async (req, res) => {
-    const { cards, secretKey, authorId, status, versionLabel } = req.body || {};
+  // 4.6 Bulk Upsert API: same boss authentication as interactive writes.
+  app.post("/api/admin/cards/bulk-upsert", manageCards, async (req, res) => {
+    const { cards, status, versionLabel } = req.body || {};
     if (!Array.isArray(cards) || cards.length === 0) {
       return res.status(400).json({ error: "No cards provided" });
     }
 
-    let devKey = process.env.DEV_KEY || "sj0127wqt";
-    try {
-      const sysDbRow = await dbGet(
-        "SELECT setting_value FROM system_settings WHERE setting_key = 'DEV_KEY'",
-      );
-      if (sysDbRow && sysDbRow.setting_value) devKey = sysDbRow.setting_value;
-    } catch (e) {}
-    if (secretKey !== devKey) {
-      return res.status(403).json({ error: "密钥不正确" });
-    }
-
     const finalStatus = status || "active";
     const label = versionLabel || "沙盒同步";
-    const author = Number.isInteger(authorId) ? authorId : null;
+    const author = req.user.uid;
     const now = Date.now();
     const results = [];
 
@@ -953,7 +932,7 @@ export function registerCardRoutes(app) {
         if (existing) {
           newVer = (existing.version || 1) + 1;
           await cardsDbRun(
-            `UPDATE cards SET safety_type=?, phase=?, event=?, options_json=?, attribute_reason=?, status=?, version=?, updated_at=?, author_id=?, branch='release' WHERE id=?`,
+            `UPDATE cards SET safety_type=?, phase=?, event=?, options_json=?, attribute_reason=?, status=?, version=?, updated_at=?, ${actorColumn(req,'author_id')}=?, branch='release' WHERE id=?`,
             [
               c.safetyType,
               c.phase || null,
@@ -970,7 +949,7 @@ export function registerCardRoutes(app) {
           cardId = existing.id;
         } else {
           const ins = await cardsDbRun(
-            `INSERT INTO cards (key, safety_type, phase, event, options_json, attribute_reason, status, version, created_at, updated_at, author_id, branch)
+            `INSERT INTO cards (key, safety_type, phase, event, options_json, attribute_reason, status, version, created_at, updated_at, ${actorColumn(req,'author_id')}, branch)
            VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, 'release')`,
             [
               c.key,
@@ -989,7 +968,7 @@ export function registerCardRoutes(app) {
           newVer = 1;
         }
         const verIns = await cardsDbRun(
-          `INSERT INTO card_versions (card_id, key, safety_type, event, phase, options_json, attribute_reason, status, version, version_label, created_at, author_id, note, branch, promoted_at)
+          `INSERT INTO card_versions (card_id, key, safety_type, event, phase, options_json, attribute_reason, status, version, version_label, created_at, ${actorColumn(req,'author_id')}, note, branch, promoted_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'main', ?)`,
           [
             cardId,
@@ -1028,7 +1007,7 @@ export function registerCardRoutes(app) {
   });
 
   // 5. Soft Delete Card (Shortcut)
-  app.delete("/api/cards/:id", authMiddleware, async (req, res) => {
+  app.delete("/api/cards/:id", manageCards, async (req, res) => {
     const { id } = req.params;
     try {
       const existing = await cardsDbGet("SELECT * FROM cards WHERE id = ?", [
@@ -1067,7 +1046,7 @@ export function registerCardVersionRoutes(app) {
       // 权限过滤：boss 全量可见，普通用户只看自己的版本
       const filtered = history.filter((c) => {
         if (req.user.role === "boss") return true;
-        if (String(c.author_id) === String(req.user.uid)) return true;
+        if (String(c[actorColumn(req,'author_id')]) === String(req.user.uid)) return true;
         return false;
       });
 
@@ -1084,6 +1063,7 @@ export function registerCardVersionRoutes(app) {
         attribute_reason: c.attribute_reason || null,
         options: JSON.parse(c.options_json),
         author_id: c.author_id || null,
+        author_identity_id: c.author_identity_id || null,
         parent_id: c.parent_id || null,
         promoted_at: c.promoted_at || null,
         is_current: card.current_version_id === c.id,
@@ -1099,7 +1079,7 @@ export function registerCardVersionRoutes(app) {
   // 删除单个历史版本
   app.delete(
     "/api/admin/cards/:id/versions/:verId",
-    authMiddleware,
+    manageCards,
     async (req, res) => {
       try {
         const { id, verId } = req.params;
@@ -1145,7 +1125,7 @@ export function registerCardVersionRoutes(app) {
     }
   });
 
-  app.post("/api/admin/cards/:id/notes", authMiddleware, async (req, res) => {
+  app.post("/api/admin/cards/:id/notes", manageCards, async (req, res) => {
     const { content, selected_text } = req.body || {};
     if (!content) return res.status(400).json({ error: "批注内容不能为空" });
     try {
@@ -1157,7 +1137,8 @@ export function registerCardVersionRoutes(app) {
       const ts = Date.now();
       notes.push({
         id: ts,
-        author: req.user.uid,
+        author: req.actor ? null:req.user.uid,
+        author_identity_id: req.actor ? req.identity.id:null,
         author_name: req.user.username || null,
         content,
         selected_text: selected_text || null,
@@ -1177,7 +1158,7 @@ export function registerCardVersionRoutes(app) {
   // 编辑批注（修改内容 or 标记完成）
   app.put(
     "/api/admin/cards/:id/notes/:noteId",
-    authMiddleware,
+    manageCards,
     async (req, res) => {
       const { content, completed } = req.body || {};
       try {
@@ -1207,7 +1188,7 @@ export function registerCardVersionRoutes(app) {
   // 删除批注
   app.delete(
     "/api/admin/cards/:id/notes/:noteId",
-    authMiddleware,
+    manageCards,
     async (req, res) => {
       try {
         const card = await cardsDbGet("SELECT notes FROM cards WHERE id = ?", [
@@ -1233,7 +1214,7 @@ export function registerCardVersionRoutes(app) {
   );
 
   // 创建新版本（存入 card_versions）
-  app.post("/api/admin/cards/:id/branch", authMiddleware, async (req, res) => {
+  app.post("/api/admin/cards/:id/branch", manageCards, async (req, res) => {
     const { version_label, note, branch, parent_id } = req.body || {};
     try {
       const src = await cardsDbGet("SELECT * FROM cards WHERE id = ?", [
@@ -1255,7 +1236,7 @@ export function registerCardVersionRoutes(app) {
       const nextVersion = (maxVer?.v || src.version || 0) + 1;
 
       const result = await cardsDbRun(
-        `INSERT INTO card_versions(card_id, key, safety_type, event, phase, options_json, audio_url, attribute_reason, version, version_label, note, branch, parent_id, author_id, created_at)
+        `INSERT INTO card_versions(card_id, key, safety_type, event, phase, options_json, audio_url, attribute_reason, version, version_label, note, branch, parent_id, ${actorColumn(req,'author_id')}, created_at)
        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [
           src.id,
@@ -1287,7 +1268,7 @@ export function registerCardVersionRoutes(app) {
   });
 
   // 更新版本内容
-  app.put("/api/admin/card-versions/:id", authMiddleware, async (req, res) => {
+  app.put("/api/admin/card-versions/:id", manageCards, async (req, res) => {
     try {
       const ver = await cardsDbGet("SELECT * FROM card_versions WHERE id = ?", [
         req.params.id,
@@ -1316,7 +1297,7 @@ export function registerCardVersionRoutes(app) {
       const note = updates.note !== undefined ? updates.note : ver.note;
 
       await cardsDbRun(
-        `UPDATE card_versions SET safety_type=?, event=?, phase=?, options_json=?, audio_url=?, attribute_reason=?, version_label=?, note=?, author_id=? WHERE id=?`,
+        `UPDATE card_versions SET safety_type=?, event=?, phase=?, options_json=?, audio_url=?, attribute_reason=?, version_label=?, note=?, ${actorColumn(req,'author_id')}=? WHERE id=?`,
         [
           safetyType,
           event,
@@ -1343,7 +1324,7 @@ export function registerCardVersionRoutes(app) {
   // Promote: 把某个版本推送到沙盒（card_versions → cards）
   app.post(
     "/api/admin/card-versions/:id/promote",
-    authMiddleware,
+    manageCards,
     async (req, res) => {
       try {
         const ver = await cardsDbGet(
@@ -1383,7 +1364,7 @@ export function registerCardVersionRoutes(app) {
   );
 
   // Release: 把沙盒内容发布到游戏（cards → cards_released）
-  app.post("/api/admin/cards/:id/release", authMiddleware, async (req, res) => {
+  app.post("/api/admin/cards/:id/release", manageCards, async (req, res) => {
     try {
       const card = await cardsDbGet("SELECT * FROM cards WHERE id = ?", [
         req.params.id,
@@ -1398,7 +1379,7 @@ export function registerCardVersionRoutes(app) {
         `发布于${new Date().toISOString().slice(0, 10)}`;
 
       await cardsDbRun(
-        `INSERT INTO cards_released (card_id, key, safety_type, event, phase, options_json, audio_url, attribute_reason, card_code, title, guide_text, version_label, from_version_id, released_by, released_at)
+        `INSERT INTO cards_released (card_id, key, safety_type, event, phase, options_json, audio_url, attribute_reason, card_code, title, guide_text, version_label, from_version_id, ${actorColumn(req,'released_by')}, released_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           card.id,

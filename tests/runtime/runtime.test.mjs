@@ -77,6 +77,25 @@ test("routing preserves the baseline order plus explicitly approved tenant guard
   )) {
     route.handlers.push("<anonymous>");
   }
+  // WQT-006: all content writes require the current boss role; secret-only upsert is removed.
+  for (const route of expected.filter(layer =>
+    layer.methods?.some(method => ["post", "put", "delete"].includes(method)) &&
+    (/^\/api\/cards(?:\/|$)/.test(layer.path || "") ||
+     /^\/api\/admin\/(?:cards|card-versions|card-groups)(?:\/|$)/.test(layer.path || "") ||
+     layer.path === "/api/admin/generate-card")
+  )) {
+    if (!route.handlers.includes("authMiddleware")) route.handlers.unshift("authMiddleware");
+    route.handlers.splice(1, 0, "<anonymous>");
+  }
+  // The two bulk release aliases now share one named callback; role middleware
+  // and route order remain part of this exact comparison.
+  for (const route of expected.filter(layer=>["/api/admin/cards/bulk-release","/api/admin/cards/bulk-publish"].includes(layer.path))) {
+    route.handlers[route.handlers.length-1]="bulkReleaseHandler";
+  }
+  // WQT-006: only public verification capabilities/app ID are exposed, never secrets.
+  expected.splice(expected.findIndex(layer=>layer.path==='/api/db/test'),0,{
+    path:'/api/auth/verification-options',methods:['get'],handlers:['<anonymous>']
+  });
   const activityIndex = expected.findIndex(
     (layer) => layer.path === "/api/admin/activities",
   );
@@ -86,6 +105,16 @@ test("routing preserves the baseline order plus explicitly approved tenant guard
     handlers: ["authMiddleware", "<anonymous>"],
   });
   expected.splice(expected.length - 1, 0, { ...expected.at(-1) });
+  // Added download routes sit before version routes; preserve all prior order.
+  const downloads=[
+    {path:'/api/downloads',methods:['get'],handlers:['identify','guardedAuth','entitled','<anonymous>']},
+    {path:'/api/downloads/:id/file',methods:['get'],handlers:['identify','guardedAuth','entitled','<anonymous>']},
+    {path:'/api/admin/downloads',methods:['get'],handlers:['<anonymous>','<anonymous>','<anonymous>']},
+    {path:'/api/admin/downloads/events',methods:['get'],handlers:['<anonymous>','<anonymous>','<anonymous>']},
+    {path:'/api/admin/downloads',methods:['post'],handlers:['identify','<anonymous>','<anonymous>','multerMiddleware','<anonymous>']},
+    {name:'<anonymous>',regexp:String(new RegExp('^\\/api\\/downloads\\/?(?=\\/|$)|^\\/api\\/admin\\/downloads\\/?(?=\\/|$)','i'))}
+  ];
+  expected.splice(expected.findIndex(layer=>layer.path==='/api/admin/cards/:id/versions'),0,...downloads);
   function signature(stack) {
     return stack.map((layer) =>
       layer.route

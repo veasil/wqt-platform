@@ -38,11 +38,13 @@ export async function createSessionFile({
       if (!locked)
         throw Object.assign(new Error("会话不可访问"), { status: 404 });
       await tx.run(
-        "INSERT INTO session_files(id, session_id, user_id, object_key, filename, media_type, size, created_at) VALUES(?,?,?,?,?,?,?,?)",
+        typeof userId === 'object'
+          ? "INSERT INTO session_files(id, session_id, uploaded_by_identity_id, object_key, filename, media_type, size, created_at) VALUES(?,?,?,?,?,?,?,?)"
+          : "INSERT INTO session_files(id, session_id, user_id, object_key, filename, media_type, size, created_at) VALUES(?,?,?,?,?,?,?,?)",
         [
           id,
           sessionId,
-          userId,
+          typeof userId === 'object' ? userId.identityId : userId,
           objectKey,
           filename,
           mediaType,

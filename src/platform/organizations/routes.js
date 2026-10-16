@@ -1,4 +1,6 @@
 import bcrypt from "bcryptjs";
+import {accountModelEnabled} from '../accounts/model.js';
+import {registerAccountAdminRoutes} from '../accounts/admin.routes.js';
 import { dbRun, dbGet, dbAll } from "../../db.js";
 import { authMiddleware } from "../../middleware/auth.js";
 import { requireRole, requireEnterprise } from "../../middleware/rbac.js";
@@ -9,6 +11,7 @@ import {
 } from "../../game/activities/codes.js";
 
 export function registerOrganizationRoutes(app) {
+  if (accountModelEnabled()) return registerAccountAdminRoutes(app);
   // ======== API: Boss 组织管理 ========
 
   // 创建组织 + 组织管理员账号

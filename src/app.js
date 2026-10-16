@@ -9,6 +9,8 @@ import { ROOT_DIR } from "./paths.js";
 import authRouter from "./routes/auth.routes.js";
 import accountAdminRouter from "./routes/account-admin.routes.js";
 import adminDataRouter from "./routes/admin-data.routes.js";
+import accountAuthRouter from "./platform/accounts/auth.routes.js";
+import { accountModelEnabled } from "./platform/accounts/model.js";
 import { registerSettingsRoutes } from "./platform/settings/routes.js";
 import { registerProfileRoutes } from "./platform/identity/profile.routes.js";
 import { registerOrganizationRoutes } from "./platform/organizations/routes.js";
@@ -19,6 +21,9 @@ import {
 } from "./game/cards/routes.js";
 import { registerMediaRoutes } from "./integrations/media/routes.js";
 import { registerActivityRoutes } from "./game/activities/routes.js";
+
+import { registerDownloadRoutes } from "./platform/downloads/routes.js";
+import { registerPlayerRoutes } from "./game/player/routes.js";
 
 export function createApp({
   runtimeConfig = defaultConfig,
@@ -53,6 +58,8 @@ export function createApp({
             "'self'",
             "'unsafe-inline'",
             "https://cdn.jsdelivr.net",
+            "https://turing.captcha.qcloud.com",
+            "https://turing.captcha.gtimg.com",
           ],
           // helmet 默认带 script-src-attr 'none' 会屏蔽所有 onclick=/onsubmit= 等内联事件处理器
           // (index.html/my.html 等大量用到)，显式放开与 script-src 同等放宽，保持现状不破
@@ -67,12 +74,16 @@ export function createApp({
             "'self'",
             "data:",
             "https://ai5000days-scoring-system-hk.oss-cn-hongkong.aliyuncs.com",
+            "https://ai5000days-wqt-next-live-hk.oss-cn-hongkong.aliyuncs.com",
           ],
           "media-src": [
             "'self'",
             "https://ai5000days-scoring-system-hk.oss-cn-hongkong.aliyuncs.com",
+            "https://ai5000days-wqt-next-live-hk.oss-cn-hongkong.aliyuncs.com",
           ],
-          "connect-src": ["'self'"],
+          "connect-src": ["'self'", "https://turing.captcha.qcloud.com"],
+          "frame-src": ["'self'", "https://turing.captcha.qcloud.com", "https://turing.captcha.gtimg.com"],
+          "worker-src": ["'self'", "blob:"],
           "frame-ancestors": ["'none'"],
           "object-src": ["'none'"],
           "base-uri": ["'self'"],
@@ -105,6 +116,16 @@ export function createApp({
     }),
   );
 
+  // Explicit release entry points, before static fallbacks.
+  app.get('/api/health', (_req, res) => res.json({ok:true,release:process.env.WQT_RELEASE_SHA || 'unknown'}));
+  app.get('/', (req, res, next) => {
+    if (process.env.WQT_ACCOUNT_MODEL !== 'accounts') return next();
+    res.redirect(302, req.hostname === 'admin.ai5000days.com' ? '/admin/' : '/player/');
+  });
+  if (process.env.WQT_RELEASE_SCOPE === 'scoring-admin') {
+    app.use('/enterprise', (_req, res) => res.status(404).json({error:'本次未开放组织端'}));
+  }
+
   // 静态资源
   app.use(express.static(path.join(ROOT_DIR, "public")));
 
@@ -135,11 +156,16 @@ export function createApp({
   registerCardRoutes(app);
   registerMediaRoutes(app, { config, ossClient, upload });
   registerActivityRoutes(app);
+  registerDownloadRoutes(app,{ossClient,upload});
+  if(accountModelEnabled()) registerPlayerRoutes(app);
   registerCardVersionRoutes(app);
 
+  if (accountModelEnabled()) app.use(accountAuthRouter);
   app.use(authRouter);
-  app.use(accountAdminRouter);
-  app.use(adminDataRouter);
+  if (!accountModelEnabled()) {
+    app.use(accountAdminRouter);
+    app.use(adminDataRouter);
+  }
 
   app.use((error, req, res, next) => {
     if (res.headersSent) return next(error);

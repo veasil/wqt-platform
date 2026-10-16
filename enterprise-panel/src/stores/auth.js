@@ -32,5 +32,17 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  return { token, user, isLoggedIn, setAuth, logout, fetchMe }
+  async function availableAccounts() {
+    const {data}=await api.get('/api/auth/accounts')
+    return data.accounts.filter(account=>account.role==='enterprise' && account.plan==='city')
+  }
+  async function switchAccount(accountId) {
+    const {data}=await api.post('/api/auth/select-account',{accountId})
+    setAuth(data.token,data.user)
+  }
+  async function endSession() {
+    try {await api.post('/api/auth/logout')} finally {logout()}
+  }
+
+  return { token, user, isLoggedIn, setAuth, logout, fetchMe,availableAccounts,switchAccount,endSession }
 })

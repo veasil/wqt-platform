@@ -106,16 +106,16 @@ export async function verifyCaptcha({ ticket, randstr, ip } = {}) {
       service: "captcha", action: "DescribeCaptchaResult", version: "2019-07-22",
       region: "", payload,
     });
-    const resp = await fetch(`https://${host}`, { method: "POST", headers, body: payload });
+    const resp = await fetch(`https://${host}`, { method: "POST", headers, body: payload, signal:globalThis.AbortSignal.timeout(8000) });
     const data = await resp.json();
     const r = data?.Response;
     if (!r || r.Error) {
-      console.error("天御校验接口报错:", r?.Error || data);
+      console.error("天御校验接口报错:", r?.Error?.Code || 'INVALID_RESPONSE');
       return { ok: false, error: "人机验证失败，请重试" };
     }
     // CaptchaCode === 1 表示验证通过
     if (r.CaptchaCode === 1) return { ok: true };
-    return { ok: false, error: "人机验证未通过，请重试" };
+    return { ok: false, error: "人机验证未通过，请重试", providerCode:r.CaptchaCode };
   } catch (e) {
     console.error("天御校验异常:", e.message);
     return { ok: false, error: "人机验证服务暂不可用" };

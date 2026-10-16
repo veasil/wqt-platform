@@ -141,6 +141,8 @@
         <p class="subtitle">请填写以下信息完成注册</p>
 
         <form id="register-form">
+            <div class="form-group" id="existing-user-option" style="display:none"><label><input type="checkbox" id="existing-user" style="width:auto"> 我已注册，用邀请码加入另一个组织</label><div class="field-hint">选择密码或短信验证，保留原用户资料。</div></div>
+            <div class="form-group" id="verification-method-row" style="display:none"><label for="verification-method">身份验证方式</label><select id="verification-method"><option value="password">密码验证</option><option value="sms">短信验证（先完成人机验证）</option><option disabled>微信 · 待接入</option></select></div>
             <div class="form-group">
                 <label for="invite-code">邀请码 *</label>
                 <input type="text" id="invite-code" class="invite-code-input"
@@ -158,6 +160,13 @@
             </div>
 
             <div class="form-group">
+                <label for="sms-code">短信验证码 *</label>
+                <input id="sms-code" inputmode="numeric" autocomplete="one-time-code" placeholder="请输入短信验证码" required>
+                <button type="button" id="send-sms" class="btn" style="margin-top:10px">获取验证码</button>
+                <div id="sms-status" class="field-hint" role="status"></div>
+            </div>
+
+            <div class="form-group">
                 <label for="nickname">守望师名 *</label>
                 <input type="text" id="nickname" placeholder="游戏中显示的昵称" maxlength="20" required>
                 <div class="field-hint">将用于游戏记录和复盘报告</div>
@@ -166,7 +175,7 @@
             <div class="form-group">
                 <label for="password">密码 *</label>
                 <input type="password" id="password" placeholder="至少6位" minlength="6" required>
-                <div class="field-hint">密码至少需要6位字符</div>
+                <div class="field-hint">新手机号设置密码；已有手机号请输入原密码，原身份资料会保留</div>
             </div>
 
             <div class="form-group">
@@ -183,10 +192,47 @@
         </p>
     </div>
 
+    <script src="/identity-verification.js"></script>
     <script>
         const form = document.getElementById('register-form');
         const submitBtn = document.getElementById('submit-btn');
         const errorMessage = document.getElementById('error-message');
+        const sendSms = document.getElementById('send-sms');
+        const invitedCode = new URLSearchParams(window.location.search).get('inviteCode');
+        if (invitedCode) document.getElementById('invite-code').value = invitedCode.toUpperCase();
+        let pendingRegistration = null;
+        fetch('/api/settings').then(r=>r.json()).then(data=>{
+            if(data.accountModel==='accounts') document.getElementById('existing-user-option').style.display='';
+        }).catch(()=>{});
+        function updateVerification() {
+            const existing=document.getElementById('existing-user').checked;
+            const method=document.getElementById('verification-method').value;
+            document.getElementById('verification-method-row').style.display=existing ? '' : 'none';
+            for(const [id,required] of [['password',!existing || method==='password'],['sms-code',!existing || method==='sms']]) {const field=document.getElementById(id);field.required=required;field.closest('.form-group').style.display=required ? '' : 'none';}
+        }
+        document.getElementById('verification-method').onchange=updateVerification;
+        document.getElementById('existing-user').onchange = e => {
+            for (const id of ['real-name','nickname','confirm-password']) {
+                const input = document.getElementById(id);
+                input.required = !e.target.checked;
+                input.closest('.form-group').style.display = e.target.checked ? 'none' : '';
+            }
+            updateVerification();
+            submitBtn.textContent = e.target.checked ? '验证并加入组织' : '注册';
+        };
+        sendSms.onclick = async () => {
+            const phone = document.getElementById('phone').value.trim();
+            const status = document.getElementById('sms-status');
+            if (!phone) { status.textContent = '请先填写手机号'; return; }
+            sendSms.disabled = true;
+            try {
+                const response = await fetch('/api/auth/sms/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone, ...await window.WqtVerification.captchaProof() }) });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || '发送失败');
+                status.textContent = data.mockCode ? `测试验证码：${data.mockCode}` : '验证码已发送';
+                setTimeout(() => { sendSms.disabled = false; }, 60000);
+            } catch (error) { status.textContent = error.message; sendSms.disabled = false; }
+        };
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -198,22 +244,28 @@
             const nickname = document.getElementById('nickname').value.trim();
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirm-password').value;
+            const smsCode = document.getElementById('sms-code').value.trim();
+            const existingUser = document.getElementById('existing-user').checked;
 
             if (!code) { errorMessage.textContent = '请输入邀请码'; return; }
             if (!phone) { errorMessage.textContent = '请输入手机号'; return; }
-            if (!realName) { errorMessage.textContent = '请输入真实姓名'; return; }
-            if (!nickname) { errorMessage.textContent = '请输入守望师名'; return; }
-            if (password.length < 6) { errorMessage.textContent = '密码至少需要6位'; return; }
-            if (password !== confirmPassword) { errorMessage.textContent = '两次密码输入不一致'; return; }
+            const verificationMethod=existingUser ? document.getElementById('verification-method').value : undefined;
+            if ((!existingUser || verificationMethod==='sms') && !smsCode) { errorMessage.textContent = '请输入短信验证码'; return; }
+            if (!existingUser && !realName) { errorMessage.textContent = '请输入真实姓名'; return; }
+            if (!existingUser && !nickname) { errorMessage.textContent = '请输入守望师名'; return; }
+            if ((!existingUser || verificationMethod==='password') && password.length < 6) { errorMessage.textContent = '密码至少需要6位'; return; }
+            if (!existingUser && password !== confirmPassword) { errorMessage.textContent = '两次密码输入不一致'; return; }
 
             submitBtn.disabled = true;
             submitBtn.textContent = '注册中...';
 
             try {
+                const fingerprint = JSON.stringify({ code, phone, realName, nickname, password });
+                if (!pendingRegistration || pendingRegistration.fingerprint !== fingerprint) pendingRegistration = { fingerprint, requestId: crypto.randomUUID() };
                 const response = await fetch('/api/auth/register-with-invite', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code, phone, realName, nickname, password })
+                    body: JSON.stringify({ code, phone, realName, nickname, password:verificationMethod==='sms' ? undefined:password, smsCode:verificationMethod==='password' ? undefined:smsCode, verificationMethod, requestId: pendingRegistration.requestId })
                 });
 
                 const data = await response.json();

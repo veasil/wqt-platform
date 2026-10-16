@@ -4,7 +4,7 @@
   };
 
   function getToken() {
-    return localStorage.getItem("WQT_AUTH_TOKEN") || "";
+    return (getSessionId() && sessionStorage.getItem('WQT_GAME_AUTH_TOKEN')) || localStorage.getItem("WQT_AUTH_TOKEN") || "";
   }
 
   // 会话 ID 用 sessionStorage（按标签页隔离），避免多标签页互相覆盖：
@@ -15,11 +15,14 @@
     return Number.isFinite(cached) && cached > 0 ? cached : null;
   }
 
-  function setSessionId(sessionId) {
+  function setSessionId(sessionId, token = null) {
     if (sessionId) {
+      const unchanged = getSessionId() === Number(sessionId) && sessionStorage.getItem('WQT_GAME_AUTH_TOKEN');
       sessionStorage.setItem("WQT_SESSION_ID", String(sessionId));
+      if (token || !unchanged) sessionStorage.setItem('WQT_GAME_AUTH_TOKEN', token || localStorage.getItem('WQT_AUTH_TOKEN') || '');
     } else {
       sessionStorage.removeItem("WQT_SESSION_ID");
+      sessionStorage.removeItem('WQT_GAME_AUTH_TOKEN');
     }
   }
 
@@ -47,11 +50,19 @@
     if (body && (path === "api/llm/story" || path === "api/llm/image" || path === "api/upload/report") && !body.sessionId) {
       body = { ...body, sessionId: getSessionId() };
     }
-    const res = await fetch(path, {
+    if (body && /^api\/game\/(start|event|finish)$/.test(path) && !body.requestId) body.requestId = crypto.randomUUID();
+    const options = {
       method,
       headers,
       body: body ? JSON.stringify(body) : null
-    });
+    };
+    let res;
+    const apiPath=path.startsWith('api/')?(localStorage.getItem('wqt_api_base')||'/api')+path.slice(3):path;
+    try { res = await fetch(apiPath, options); }
+    catch (error) {
+      if (!body?.requestId) throw error;
+      res = await fetch(apiPath, options);
+    }
     let data = null;
     try {
       data = await res.json();
@@ -801,7 +812,7 @@
     });
   }
 
-  function renderResult(target, { structured, reportUrl }) {
+  function renderResult(target, { structured, reportUrl, missingImages=0 }) {
     if (!target) return;
     const s = structured || {};
     const overview = s.overview || {};
@@ -812,6 +823,8 @@
     target.innerHTML = `
       <div style="line-height: 1.7;">
         <h4 style="margin:0 0 8px;">🎉 复盘报告已生成</h4>
+        ${missingImages ? `<p role="status">${missingImages}张插画暂未生成，文字报告已保留。</p>` : ""}
+        ${reportUrl.startsWith('blob:') ? '<p role="status">云端保存失败，当前仅可下载本地副本，请勿关闭页面。</p>' : ""}
         <div style="background:linear-gradient(120deg,#fff6da,#ffe9b0);border:1px dashed #f0b400;border-radius:10px;padding:10px 14px;font-weight:800;color:#a05a00;text-align:center;">${summary}</div>
         ${experienced ? `<p style="margin:12px 0;color:#444;">${experienced}</p>` : ""}
         ${takeaway ? `<div style="margin:8px 0;background:#eef3ff;border-radius:8px;padding:8px 12px;color:#2455c6;font-weight:700;">📣 ${takeaway}</div>` : ""}
@@ -877,7 +890,8 @@
   // 同源图片 URL → dataURI（卡面图与游戏页同源，可直接读，便于导出时自包含）
   async function imgUrlToDataUri(url) {
     try {
-      const res = await fetch(url);
+      const assetUrl=location.pathname.startsWith('/player/')&&!/^(?:https?:|data:|blob:|\/)/.test(url)?'/'+url:url;
+      const res = await fetch(assetUrl);
       if (!res.ok) return "";
       const blob = await res.blob();
       return await new Promise((resolve) => {
@@ -990,13 +1004,13 @@
 
     status("正在排版生成海报…", 92);
     const reportHtml = buildReportHtml(structured, reviewData, radars, sceneImages, cardFaces, brand);
-    return { structured, radars, reportHtml };
+    return { structured, radars, reportHtml, missingImages:scenes.length-sceneImages.length };
   }
 
-  async function openReview() {
+  async function openReview(targetOverride = null) {
     if (REVIEW_STATE.working) return;
     REVIEW_STATE.working = true;
-    const target = document.getElementById("choice-display");
+    const target = targetOverride || document.getElementById("choice-display");
 
     try {
       if (!getToken()) {
@@ -1043,23 +1057,10 @@
 
       const reviewData = buildReviewData(session, events);
 
-      // 从系统设置获取最低卡牌数，默认 7
-      let minCards = 7;
-      try {
-        const settingsRes = await api("api/settings");
-        if (settingsRes.ok && settingsRes.settings) {
-          const row = settingsRes.settings.find(s => s.key === "REVIEW_MIN_CARDS");
-          if (row) minCards = Math.max(1, parseInt(row.value, 10) || 7);
-        }
-      } catch (_) { /* 拿不到就用默认值 */ }
+      // 2026-10-16: report eligibility does not depend on the number of cards.
+      // REVIEW_MIN_CARDS only belongs to the legacy free-mode game setup.
 
-      // 检查数据是否足够
-      if (reviewData.cards.length < minCards) {
-        renderStatus(target, `数据不足：至少需要完成 ${minCards} 张卡牌才能生成有意义的复盘报告。当前只有 ${reviewData.cards.length} 张卡牌。`);
-        return;
-      }
-
-      const { structured, reportHtml } = await generateReport(reviewData, (msg, pct) => renderProgress(target, msg, pct));
+      const { structured, reportHtml, missingImages } = await generateReport(reviewData, (msg, pct) => renderProgress(target, msg, pct));
 
       // 上传到 OSS
       renderProgress(target, "正在上传复盘报告…", 94);
@@ -1078,8 +1079,8 @@
         reportUrl = URL.createObjectURL(reportBlob);
       }
 
-      renderProgress(target, "复盘报告已生成！", 100);
-      renderResult(target, { structured, reportUrl });
+      renderProgress(target, missingImages ? `复盘报告已生成，${missingImages}张插画暂未生成。` : "复盘报告已生成！", 100);
+      renderResult(target, { structured, reportUrl, missingImages });
       notifyAiTutorLevel1Complete(reviewData, reportUrl);
     } catch (error) {
       renderStatus(target, `复盘生成失败：${error.message}`);
