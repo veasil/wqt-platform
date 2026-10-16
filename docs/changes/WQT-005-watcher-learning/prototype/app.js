@@ -1,0 +1,20 @@
+const dialog=document.querySelector('#detail');
+const lock='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg>';
+function show(label,title,copy){document.querySelector('#dialog-label').textContent=label;document.querySelector('#dialog-title').textContent=title;document.querySelector('#dialog-copy').textContent=copy;dialog.showModal()}
+function renderCatalog(){const root=document.querySelector('#curriculum');root.replaceChildren();window.learningCatalog.forEach((module,index)=>{
+ const section=document.createElement('section');section.className='learning-module';section.id='module'+index;
+ const heading=document.createElement('div');heading.className='module-heading';const number=document.createElement('span');number.className='module-order';number.textContent=String(index).padStart(2,'0');const title=document.createElement('h2');title.textContent=module.title;heading.append(number,title);section.append(heading);
+ const card=document.createElement('article');card.className=index===0?'reader':'course-card';const body=document.createElement('div');body.className='course-card-body'+(index===0?' module-inner':'');
+ const intro=document.createElement('div');intro.className='course-intro';const text=document.createElement('p');text.textContent=module.familyRole;const icon=document.createElement('span');icon.className='badge';icon.innerHTML=lock;icon.title='正文暂未开放';icon.setAttribute('aria-label','正文暂未开放');intro.append(text,icon);body.append(intro);
+ module.groups.forEach((group,groupIndex)=>{const details=document.createElement('details');details.className='catalog-group';details.open=groupIndex===0;const summary=document.createElement('summary');const chapter=document.createElement('span');chapter.className='chapter-number';chapter.textContent=String(groupIndex+1).padStart(2,'0');const name=document.createElement('span');name.className='group-name';name.textContent=group.title;const count=document.createElement('span');count.className='group-count';count.textContent=group.items.length+' 课';summary.append(chapter,name,count);const list=document.createElement('ol');list.className='course-list';
+ group.items.forEach((item,i)=>{const li=document.createElement('li');const row=document.createElement('a');row.className='course-row';row.href='lesson.html?id='+encodeURIComponent(item.id);row.dataset.courseId=item.id;const num=document.createElement('span');num.className='course-number';num.textContent=String(i+1).padStart(2,'0');const label=document.createElement('span');label.className='course-name';label.textContent=item.title;const arrow=document.createElement('span');arrow.className='course-arrow';arrow.setAttribute('aria-hidden','true');arrow.textContent='↗';row.append(num,label,arrow);li.append(row);list.append(li)});details.append(summary,list);body.append(details)});
+ card.append(body);section.append(card);root.append(section);
+})}
+function setTheme(dark){document.body.classList.toggle('dark',dark);document.querySelector('#theme').textContent=dark?'☀':'◐';document.querySelector('#theme').setAttribute('aria-label',dark?'切换亮色主题':'切换暗色主题');document.querySelectorAll('[data-course-id]').forEach(a=>a.href='lesson.html?id='+encodeURIComponent(a.dataset.courseId)+(dark?'&theme=dark':''))}
+document.querySelector('#theme').onclick=()=>setTheme(!document.body.classList.contains('dark'));
+document.querySelector('#close-dialog').onclick=document.querySelector('#dialog-done').onclick=()=>dialog.close();
+document.querySelector('#rights').onclick=()=>show('学习权限','正文暂未开放','你可以查看课程介绍、目标与计划练习。原始资料正在整理，课程正文与下载尚未开放。');
+document.querySelector('#news-preview').onclick=()=>show('新闻速递','首期速递，正在准备','发布后呈现新闻摘要、原始来源与延伸阅读。');
+document.querySelector('[data-course]')?.addEventListener('click',()=>show('学习权限','专题资料暂未开放','正式专题资料发布后可在此查看学习权益。'));
+document.querySelector('#subscribe').onsubmit=e=>{e.preventDefault();document.querySelector('#subscription-status').textContent='设计演示，尚未订阅；邮箱未保存或发送。'};
+renderCatalog();setTheme(new URLSearchParams(location.search).get('theme')==='dark');
