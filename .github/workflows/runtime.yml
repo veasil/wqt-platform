@@ -46,6 +46,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
+      - run: npx playwright install --with-deps chromium
       - name: Install matching PostgreSQL backup tools
         run: |
           sudo install -d /usr/share/postgresql-common/pgdg

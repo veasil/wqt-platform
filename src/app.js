@@ -117,12 +117,12 @@ export function createApp({
   );
 
   // Explicit release entry points, before static fallbacks.
+  if (process.env.WQT_RELEASE_SCOPE === 'scoring-admin') {
   app.get('/api/health', (_req, res) => res.json({ok:true,release:process.env.WQT_RELEASE_SHA || 'unknown'}));
   app.get('/', (req, res, next) => {
     if (process.env.WQT_ACCOUNT_MODEL !== 'accounts') return next();
     res.redirect(302, req.hostname === 'admin.ai5000days.com' ? '/admin/' : '/player/');
   });
-  if (process.env.WQT_RELEASE_SCOPE === 'scoring-admin') {
     app.use('/enterprise', (_req, res) => res.status(404).json({error:'本次未开放组织端'}));
   }
 
