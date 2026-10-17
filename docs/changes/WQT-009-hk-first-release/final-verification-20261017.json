@@ -1,0 +1,17 @@
+{
+  "verifiedDate": "2026-10-17",
+  "runtime": {
+    "host": "wqt-next-pg",
+    "database": "wqt_next",
+    "cards": 225,
+    "release": "8edaeb7f2a301180289f703d03bd974bc4428644"
+  },
+  "publicCards": {
+    "group": "2026版",
+    "cards": 45,
+    "realContent": true
+  },
+  "stability": "Application, PostgreSQL and Redis each running 14 hours with zero restarts",
+  "scheduledBackup": "Observed successful hourly executions at 2026-10-17 15:17 and 16:17 Asia/Singapore",
+  "scope": "Domain availability and real production database/content; formal team provisioning and real SMS login remain pending"
+}
