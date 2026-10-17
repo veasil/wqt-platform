@@ -238,10 +238,10 @@ function login(mode = "password") {
   bind("auth-sms", () => login("sms"));
   if (mode === 'sms') {
    const form = $('#auth-form'), b = $('#send-code'), status = $('#sms-status');
-   let sending = false, remaining = 0, waiting = false;
+   let sending = false, remaining = 0, waiting = false, retry = false;
    const render = seconds => {
     remaining = seconds; b.disabled = sending || seconds > 0;
-    b.textContent = seconds > 0 ? seconds + '秒后重发' : '获取验证码';
+    b.textContent = seconds > 0 ? seconds + '秒后重发' : retry ? '重新获取' : '获取验证码';
     if (waiting) status.textContent = seconds > 0 ? `请等待 ${seconds} 秒后重试` : '现在可以重新获取验证码';
    };
    const cooldown = createSmsCooldown(render);
@@ -266,6 +266,7 @@ function login(mode = "password") {
      if (form.isConnected && form.elements.phone.value.trim() === phone)
       status.textContent = data.mockCode ? '本地测试验证码：' + data.mockCode + '（未发送短信）' : '验证码已发送，请查看手机短信';
     } catch (e) {
+     retry = true;
      if (!form.isConnected) return;
      if (e.code === 'SMS_RESEND_COOLDOWN' && e.retryAfterSeconds > 0) {
       waiting = form.elements.phone.value.trim() === phone;
