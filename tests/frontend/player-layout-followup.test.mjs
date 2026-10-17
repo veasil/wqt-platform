@@ -19,6 +19,7 @@ async function harness(t,width){
  const errors=[];page.on('pageerror',e=>errors.push(e.message));t.after(()=>assert.deepEqual(errors,[]));
  await page.route('http://localhost/**',async route=>{
   const url=new URL(route.request().url());
+  if(url.pathname==='/shared/browser/sms-cooldown.js')return route.fulfill({contentType:'text/javascript',body:await readFile(resolve('shared/browser/sms-cooldown.js'))});
   if(url.pathname.startsWith('/api/')){
    const pending=[{id:101,location:'青禾学校 · 现场活动反馈',ended_at:Date.now(),questionnaire:{questions:Array.from({length:12},(_,i)=>({id:'q'+i,type:'text',label:'请记录现场讨论、参与情况与改进建议 '+(i+1)}))}}];
    return route.fulfill({contentType:'application/json',body:JSON.stringify(url.pathname==='/api/player/feedback'?{pending}:{})});

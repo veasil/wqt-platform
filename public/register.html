@@ -193,7 +193,8 @@
     </div>
 
     <script src="/identity-verification.js"></script>
-    <script>
+    <script type="module">
+        import {createSmsCooldown} from "/shared/browser/sms-cooldown.js";
         const form = document.getElementById('register-form');
         const submitBtn = document.getElementById('submit-btn');
         const errorMessage = document.getElementById('error-message');
@@ -220,18 +221,37 @@
             updateVerification();
             submitBtn.textContent = e.target.checked ? '验证并加入组织' : '注册';
         };
+        let sending = false, remaining = 0, waiting = false;
+        const phoneInput = document.getElementById('phone');
+        const smsStatus = document.getElementById('sms-status');
+        const cooldown = createSmsCooldown(seconds => {
+            remaining = seconds; sendSms.disabled = sending || seconds > 0;
+            sendSms.textContent = seconds > 0 ? `${seconds}秒后重发` : '获取验证码';
+            if (waiting) smsStatus.textContent = seconds > 0 ? `请等待 ${seconds} 秒后重试` : '现在可以重新获取验证码';
+        });
+        cooldown.select(phoneInput.value);
+        phoneInput.addEventListener('input', () => { waiting = false; cooldown.select(phoneInput.value); });
+        window.addEventListener('pagehide', () => cooldown.dispose());
         sendSms.onclick = async () => {
+            if (sending || remaining > 0) return;
+            waiting = false;
             const phone = document.getElementById('phone').value.trim();
             const status = document.getElementById('sms-status');
             if (!phone) { status.textContent = '请先填写手机号'; return; }
-            sendSms.disabled = true;
+            sending = true; sendSms.disabled = true;
             try {
                 const response = await fetch('/api/auth/sms/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone, ...await window.WqtVerification.captchaProof() }) });
                 const data = await response.json();
-                if (!response.ok) throw new Error(data.error || '发送失败');
+                if (!response.ok) {
+                    if (data.code === 'SMS_RESEND_COOLDOWN' && data.retryAfterSeconds > 0) {
+                        waiting = phoneInput.value.trim() === phone; cooldown.start(phone, data.retryAfterSeconds); return;
+                    }
+                    throw new Error(data.error || '发送失败');
+                }
                 status.textContent = data.mockCode ? `测试验证码：${data.mockCode}` : '验证码已发送';
-                setTimeout(() => { sendSms.disabled = false; }, 60000);
-            } catch (error) { status.textContent = error.message; sendSms.disabled = false; }
+                cooldown.start(phone, data.resendAfterSeconds ?? 60);
+            } catch (error) { status.textContent = error.message; }
+            finally { sending = false; cooldown.select(phoneInput.value); }
         };
 
         form.addEventListener('submit', async (e) => {

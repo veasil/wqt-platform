@@ -35,6 +35,7 @@ async function harness(t){
  const accounts=[{id:11,name:'示例社工室',role:'watcher',status:'active',valid_until:Date.now()+86400000},{id:12,name:'示例学校',role:'watcher',status:'active',valid_until:Date.now()+86400000}];
  await page.route('http://localhost/**',async route=>{
   const url=new URL(route.request().url());
+  if(url.pathname==='/shared/browser/sms-cooldown.js')return route.fulfill({contentType:'text/javascript',body:await readFile(resolve('shared/browser/sms-cooldown.js'))});
   if(url.pathname.startsWith('/api/')){
    calls.push({path:url.pathname,body:route.request().postData(),headers:route.request().headers()});
    let data={};

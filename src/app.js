@@ -1,4 +1,5 @@
 import express from "express";
+import compression from "compression";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
@@ -127,11 +128,13 @@ export function createApp({
   }
 
   // 静态资源
+  app.use("/shared/browser", compression(), express.static(path.join(ROOT_DIR, "shared", "browser")));
+  app.use("/player", compression());
   app.use(express.static(path.join(ROOT_DIR, "public")));
 
   // 组织管理前端 SPA
   const enterpriseDist = path.join(ROOT_DIR, "enterprise-panel", "dist");
-  app.use("/enterprise", express.static(enterpriseDist));
+  app.use("/enterprise", compression(), express.static(enterpriseDist));
   app.get("/enterprise/*", (req, res, next) => {
     if (req.path.startsWith("/enterprise/api")) return next();
     res.sendFile(path.join(enterpriseDist, "index.html"), (err) => {
@@ -141,7 +144,7 @@ export function createApp({
 
   // 中台管理前端 SPA（admin-web，替代 Streamlit）
   const adminWebDist = path.join(ROOT_DIR, "admin-web", "dist");
-  app.use("/admin", express.static(adminWebDist));
+  app.use("/admin", compression(), express.static(adminWebDist));
   app.get("/admin/*", (req, res, next) => {
     if (req.path.startsWith("/admin/api")) return next();
     res.sendFile(path.join(adminWebDist, "index.html"), (err) => {

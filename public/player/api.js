@@ -1,8 +1,9 @@
 export class ApiError extends Error {
-  constructor(message, status, code) {
+  constructor(message, status, code, retryAfterSeconds) {
     super(message);
     this.status = status;
     this.code = code;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 export async function request(
@@ -40,6 +41,7 @@ export async function request(
         data.error || `请求失败(${res.status})`,
         res.status,
         data.code,
+        data.retryAfterSeconds,
       );
     return data;
   } catch (error) {

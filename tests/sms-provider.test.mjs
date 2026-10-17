@@ -30,7 +30,11 @@ test('configured SMS uses the provider, exposes no local code, and provider fail
       const response=await send('16600000940');assert.equal(response.status,200);
       const body=await response.json();assert.equal(body.smsId,'synthetic-sms-id');assert.ok(!Object.hasOwn(body,'mockCode'));
       assert.equal(calls.length,1);assert.ok(calls[0].url.endsWith('/requestSmsCode'));
-      assert.equal((await send('16600000940')).status,429);assert.equal(calls.length,1);
+      assert.equal(body.resendAfterSeconds,60);
+      const limited=await send('16600000940');assert.equal(limited.status,429);assert.equal(calls.length,1);
+      const cooldown=await limited.json();assert.equal(cooldown.code,'SMS_RESEND_COOLDOWN');
+      assert.ok(cooldown.retryAfterSeconds>0 && cooldown.retryAfterSeconds<=60);
+      assert.equal(limited.headers.get('retry-after'),String(cooldown.retryAfterSeconds));
       assert.equal((await verifyCode('16600000940','123456')).ok,true);
       assert.ok(calls[1].url.endsWith('/verifySmsCode/123456'));
       const failed=await send('16600000941');assert.equal(failed.status,400);

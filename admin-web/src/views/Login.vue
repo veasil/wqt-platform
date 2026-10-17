@@ -28,13 +28,14 @@
       <el-button v-if="currentSession" style="width:100%; margin-top:12px" :loading="loading" @click="continueSession">使用当前登录身份继续</el-button>
 
 
+      <p v-if="cooldownNotice" role="status" style="text-align:center">{{ cooldownMessage }}</p>
       <div v-if="error" style="color:#f56c6c; text-align:center; margin-top:12px; font-size:14px">{{ error }}</div>
     </el-card>
   </div>
 </template>
 
 <script setup>
-import { reactive, ref, onBeforeUnmount, onMounted } from 'vue'
+import { reactive, ref, watch, onBeforeUnmount, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '../stores/auth'
@@ -43,6 +44,7 @@ import api from '../api'
 import { captchaProof } from '../utils/captcha'
 import { Phone, Lock, Message } from '@element-plus/icons-vue'
 import {existingIdentitySession} from '../../../shared/browser/identity-session.js'
+import {createSmsCooldown} from '../../../shared/browser/sms-cooldown.js'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -62,29 +64,35 @@ async function continueSession(){
  catch(e){error.value=e.message || '登录恢复失败'}finally{loading.value=false}
 }
 
-// 发送验证码 + 60 秒倒计时
+// The server supplies the remaining wait; use a deadline so background tabs catch up.
 const sending = ref(false)
 const countdown = ref(0)
-let timer = null
-function startCountdown() {
-  countdown.value = 60
-  timer = setInterval(() => {
-    if (--countdown.value <= 0) clearInterval(timer)
-  }, 1000)
-}
-onBeforeUnmount(() => clearInterval(timer))
+const cooldownNotice = ref(false)
+const cooldownMessage = ref('')
+const cooldown = createSmsCooldown(seconds => {
+  countdown.value = seconds
+  cooldownMessage.value = seconds > 0 ? `请等待 ${seconds} 秒后重试` : '现在可以重新获取验证码'
+})
+watch(() => form.phone, phone => { cooldownNotice.value = false; cooldown.select(phone) }, {immediate:true})
+onBeforeUnmount(() => cooldown.dispose())
 
 async function handleSendCode() {
-  error.value = ''
-  if (!form.phone) { error.value = '请先填写手机号'; return }
+  if (sending.value || countdown.value > 0) return
+  error.value = ''; cooldownNotice.value = false
+  const phone = form.phone
+  if (!phone) { error.value = '请先填写手机号'; return }
   sending.value = true
   try {
-    const { data } = await sendSmsCode(form.phone, await captchaProof())
+    const { data } = await sendSmsCode(phone, await captchaProof())
     // 开发环境会直接返回模拟验证码，方便测试
     ElMessage.success(data.mockCode ? `验证码已发送（测试码：${data.mockCode}）` : '验证码已发送')
-    startCountdown()
+    cooldown.start(phone, data.resendAfterSeconds ?? 60)
   } catch (e) {
-    error.value = e.response?.data?.error || e.message || '验证码发送失败'
+    const data = e.response?.data
+    if (data?.code === 'SMS_RESEND_COOLDOWN' && data.retryAfterSeconds > 0) {
+      cooldownNotice.value = form.phone === phone
+      cooldown.start(phone, data.retryAfterSeconds)
+    } else error.value = data?.error || e.message || '验证码发送失败'
   } finally {
     sending.value = false
   }

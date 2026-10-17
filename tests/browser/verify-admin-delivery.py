@@ -48,10 +48,10 @@ try:
             org=next(o for o in orgs if o['id']==a['organization_id'])
             paid=a['id']>=30
             trial=a['identity_id']==2 and bool(state.get('trialUntil'))
-            fixture_accounts.append({**a,'organization_name':org['name'],'organization_status':'active','identity_status':'active','available':True,'paid_valid':paid,'trial_valid':trial,
+            fixture_accounts.append({**a,'organization_name':org['name'],'organization_status':'active','identity_status':'active','available':True,'paid_valid':paid,'trial_valid':trial,'trial_pending':a['identity_id']==2 and bool(state.get('trialGrantedAt')) and not trial,
                 'entitlement':'有权益' if paid else '体验中' if trial else '免费','entitlement_until':until if paid else state.get('trialUntil') if trial else None})
         users=[{**identities[0],'accounts':[a for a in fixture_accounts if a['identity_id']==1],'categories':['entitled','platform_admin'],'online':True},
-               {**identities[1],'accounts':[a for a in fixture_accounts if a['identity_id']==2],'categories':['trial'] if state.get('trialUntil') else ['free'],'trial_until':state.get('trialUntil'),'online':False}]
+               {**identities[1],'accounts':[a for a in fixture_accounts if a['identity_id']==2],'categories':['trial'] if state.get('trialUntil') else ['free'],'trial_until':state.get('trialUntil'),'trial_granted_at':state.get('trialGrantedAt'),'trial_grant_consumed_at':state.get('trialGrantedAt') if state.get('trialUntil') else None,'online':False}]
         fixture_orgs=[{**o,'bound_accounts':len([a for a in accounts if a['organization_id']==o['id'] and a.get('identity_id')]),'user_count':1,'online_users':0,'entitled':bool(o.get('subscription_id')),'location':o.get('location'),'total_sessions':0,'active_sessions':0,'avg_score':None} for o in orgs]
         users.append({'id':3,'phone':'13800000003','guardian_name':'未绑定用户','real_name':'测试丙','status':'active','accounts':[],'categories':['free'],'online':False})
         return {'accounts':fixture_accounts,'users':users,'organizations':fixture_orgs,'stats':{'entitledOrganizations':2,'totalUsers':2,'onlineUsers':1}}
@@ -81,7 +81,7 @@ try:
             elif path.startswith('/api/admin/organizations/') and req.method=='GET':
                 oid=int(path.rsplit('/',1)[1]);snap=snapshot();data={'organization':next(o for o in snap['organizations'] if o['id']==oid),'accounts':[a for a in snap['accounts'] if a['organization_id']==oid],'users':snap['users']}
             elif path == '/api/admin/trials/activate':
-                requests.append((path,req.post_data_json));state['trialUntil']=1920000000000;data={'ok':True,'identityId':2,'trialUntil':state['trialUntil']}
+                requests.append((path,req.post_data_json));state['trialGrantedAt']=1800000000000;data={'ok':True,'identityId':2,'trialGrantedAt':state['trialGrantedAt']}
             elif path == '/api/admin/invite-codes':
                 if req.method=='POST':
                     requests.append((path,req.post_data_json));data={'ok':True,'code':'INVTEST1'};state['invited']=True
@@ -153,10 +153,17 @@ try:
         expect(details).not_to_be_visible()
         page.locator('.el-radio-group').get_by_text('免费用户',exact=True).click()
         row=page.get_by_role('row').filter(has_text='新使用者')
-        row.get_by_role('button',name='开启体验30天').click()
-        trial_dialog=page.get_by_role('dialog',name='开启30天体验')
-        trial_dialog.get_by_role('button',name='开启体验30天').click()
+        row.get_by_role('button',name='开通体验权益').click()
+        trial_dialog=page.get_by_role('dialog',name='开通体验权益')
+        trial_dialog.locator('textarea').fill('合成测试：开通后由本人另行激活')
+        trial_dialog.get_by_role('button',name='开通体验权益').click()
         expect(trial_dialog).not_to_be_visible()
+        expect(row.get_by_role('button',name='体验待激活')).to_be_disabled()
+        assert not state.get('trialUntil'), 'Platform grant must not start the user trial clock'
+        assert requests[-1][1]['reason']=='合成测试：开通后由本人另行激活'
+        # Simulate a later, separate user activation before testing the active filter.
+        state['trialUntil']=1920000000000
+        page.reload();page.get_by_role('tab',name='用户',exact=True).click()
         page.locator('.el-radio-group').get_by_text('体验中用户',exact=True).click()
         expect(page.get_by_role('row').filter(has_text='新使用者')).to_be_visible()
         page.get_by_role('tab',name='组织与权益',exact=True).click()
@@ -211,7 +218,7 @@ try:
         assert next(b for path,b in requests if path=='/api/admin/settings')['requestId']
         page.get_by_role('menuitem',name='组织与权益',exact=True).click()
         page.get_by_role('tab',name='守望者账号').click()
-        page.locator('.toolbar .el-select').click()
+        page.locator('.toolbar .el-select').filter(has_text='所有组织').click()
         page.get_by_role('option',name='次数已用完组织').click()
         expect(page.get_by_role('button',name='换绑',exact=True)).to_be_disabled()
         page.get_by_role('button',name='刷新数据').click()

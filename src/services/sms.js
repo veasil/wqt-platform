@@ -65,7 +65,7 @@ export function checkSendQuota(phone, ip) {
   // 1) 同手机号 60s 重发间隔
   if (pq && SMS_RESEND_INTERVAL_MS > 0 && now - pq.lastSent < SMS_RESEND_INTERVAL_MS) {
     const waitSec = Math.ceil((SMS_RESEND_INTERVAL_MS - (now - pq.lastSent)) / 1000);
-    return { ok: false, status: 429, error: `请等待 ${waitSec} 秒后重试` };
+    return { ok: false, status: 429, retryAfterSeconds: waitSec, error: `请等待 ${waitSec} 秒后重试` };
   }
   // 2) 同手机号当日上限
   if (pq && SMS_DAILY_LIMIT > 0 && now - pq.windowStart < DAY_MS && pq.count >= SMS_DAILY_LIMIT) {

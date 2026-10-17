@@ -115,6 +115,21 @@ test("routing preserves the baseline order plus explicitly approved tenant guard
     {name:'<anonymous>',regexp:String(new RegExp('^\\/api\\/downloads\\/?(?=\\/|$)|^\\/api\\/admin\\/downloads\\/?(?=\\/|$)','i'))}
   ];
   expected.splice(expected.findIndex(layer=>layer.path==='/api/admin/cards/:id/versions'),0,...downloads);
+  // WQT-009: shared browser countdown is public static code, before the public directory.
+  expected.splice(expected.findIndex(layer => layer.name === 'serveStatic'), 0, {
+    name: 'compression', regexp: String(/^\/shared\/browser\/?(?=\/|$)/i)
+  }, {
+    name: 'serveStatic', regexp: String(/^\/shared\/browser\/?(?=\/|$)/i)
+  }, {
+    name: 'compression', regexp: String(/^\/player\/?(?=\/|$)/i)
+  });
+  // WQT-009: frontend transport compression is scoped to these two static mounts.
+  for (const prefix of ['admin', 'enterprise']) {
+    const regexp = String(new RegExp('^\\/' + prefix + '\\/?(?=\\/|$)', 'i'));
+    const index = expected.findIndex(layer => layer.name === 'serveStatic' && layer.regexp === regexp);
+    assert.ok(index >= 0);
+    expected.splice(index, 0, {name: 'compression', regexp});
+  }
   function signature(stack) {
     return stack.map((layer) =>
       layer.route

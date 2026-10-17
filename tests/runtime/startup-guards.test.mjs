@@ -72,6 +72,22 @@ test("a fully specified production environment passes startup validation", () =>
   assertAccepted(() => validateStartupEnvironment(validEnvironment()));
 });
 
+test("enabled captcha requires every runtime credential before database initialization", () => {
+  const captcha = {
+    CAPTCHA_ENABLED: "true",
+    CAPTCHA_APP_ID: "123",
+    CAPTCHA_APP_SECRET_KEY: "synthetic-app-secret",
+    TENCENT_SECRET_ID: "synthetic-id",
+    TENCENT_SECRET_KEY: "synthetic-api-secret",
+  };
+  assertAccepted(() => validateStartupEnvironment(validEnvironment(captcha)));
+  for (const key of Object.keys(captcha).filter(key => key !== "CAPTCHA_ENABLED")) {
+    for (const missing of [undefined, "", "   "]) {
+      assertRejected(() => validateStartupEnvironment(validEnvironment({ ...captcha, [key]: missing })), key);
+    }
+  }
+});
+
 test("staging requires endpoint and bucket identity to match the expected deployment", () => {
   const staging = validEnvironment({
     SERVER_ENV: "staging",
