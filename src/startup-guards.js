@@ -63,6 +63,10 @@ export function validateStartupEnvironment(env = process.env) {
   if (env.WQT_ACCOUNT_MODEL && !['accounts','legacy'].includes(env.WQT_ACCOUNT_MODEL)) fail('WQT_ACCOUNT_MODEL');
   if (isolated(env)) return;
   if (env.NODE_ENV !== "production") fail("NODE_ENV");
+  if (String(env.CAPTCHA_ENABLED || "").toLowerCase() === "true") {
+    for (const key of ["CAPTCHA_APP_ID", "CAPTCHA_APP_SECRET_KEY", "TENCENT_SECRET_ID", "TENCENT_SECRET_KEY"])
+      if (!present(env[key])) fail(key);
+  }
   if (!["staging", "prod"].includes(env.SERVER_ENV)) fail("SERVER_ENV");
   if (
     !present(env.JWT_SECRET) ||

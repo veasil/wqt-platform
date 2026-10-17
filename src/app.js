@@ -127,6 +127,7 @@ export function createApp({
   }
 
   // 静态资源
+  app.use("/shared/browser", express.static(path.join(ROOT_DIR, "shared", "browser")));
   app.use(express.static(path.join(ROOT_DIR, "public")));
 
   // 组织管理前端 SPA

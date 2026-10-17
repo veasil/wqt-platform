@@ -1,4 +1,6 @@
 import { request } from "./api.js";
+import { createSmsCooldown } from "/shared/browser/sms-cooldown.js";
+let disposeSmsCooldown = () => {};
 import { attachFrame } from "./refined-frame.js";
 import { attachReflections } from "./refined-reflections.js";
 let loginActivityCode="";
@@ -106,6 +108,7 @@ const note = (text) => `<p class="scope-note">${text}</p>`;
 const formField = (name, label, value = "", attrs = "") =>
   `<label>${label}<input name="${name}" value="${esc(value)}" ${attrs}></label>`;
 function show(name, html) {
+  disposeSmsCooldown();
   const previousView=view, scrollY=window.scrollY;
   const timelineScroll=$(".operation-timeline")?.scrollTop||0;
   generation++;
@@ -233,18 +236,47 @@ function login(mode = "password") {
   $(mode==="password"?"#auth-password":"#auth-sms").setAttribute("aria-current","true");
   bind("auth-password", () => login());
   bind("auth-sms", () => login("sms"));
-  bind('send-code',async()=>{
-   const form=$('#auth-form'),phone=form.elements.phone.value.trim();if(!/^1[3-9]\d{9}$/.test(phone))throw new Error('请填写正确的11位手机号');
-   const b=$('#send-code');b.disabled=true;b.textContent='准备验证…';$('#sms-status').textContent='正在准备安全验证，请稍候…';
-   try{
-    const humanProof=await window.WqtVerification.captchaProof();
-    if(!form.isConnected)return;
-    b.textContent='正在发送…';$('#sms-status').textContent='正在发送验证码…';
-    const data=await request('/api/auth/sms/send',{token:null,body:{phone,...humanProof}});
-    $('#sms-status').textContent=data.mockCode?'本地测试验证码：'+data.mockCode+'（未发送短信）':'验证码已发送，请查看手机短信';
-    let remaining=60;b.textContent=remaining+'秒后重发';const timer=setInterval(()=>{if(!b.isConnected){clearInterval(timer);return}remaining--;b.textContent=remaining+'秒后重发';if(!remaining){clearInterval(timer);b.disabled=false;b.textContent='重新获取'}},1000);
-   }catch(e){b.disabled=false;b.textContent='重新获取';if(form.isConnected)$('#sms-status').textContent='验证码未发送，请重试';throw e}
-  });
+  if (mode === 'sms') {
+   const form = $('#auth-form'), b = $('#send-code'), status = $('#sms-status');
+   let sending = false, remaining = 0, waiting = false;
+   const render = seconds => {
+    remaining = seconds; b.disabled = sending || seconds > 0;
+    b.textContent = seconds > 0 ? seconds + '秒后重发' : '获取验证码';
+    if (waiting) status.textContent = seconds > 0 ? `请等待 ${seconds} 秒后重试` : '现在可以重新获取验证码';
+   };
+   const cooldown = createSmsCooldown(render);
+   disposeSmsCooldown = () => cooldown.dispose();
+   cooldown.select(form.elements.phone.value);
+   form.elements.phone.addEventListener('input', () => {
+    waiting = false; status.textContent = ''; $('#page-error').textContent = '';
+    cooldown.select(form.elements.phone.value);
+   });
+   bind('send-code', async () => {
+    if (sending || remaining > 0) return;
+    const phone = form.elements.phone.value.trim();
+    if (!/^1[3-9]\d{9}$/.test(phone)) throw new Error('请填写正确的11位手机号');
+    sending = true; waiting = false; b.disabled = true; b.textContent = '准备验证…';
+    $('#page-error').textContent = ''; status.textContent = '正在准备安全验证，请稍候…';
+    try {
+     const humanProof = await window.WqtVerification.captchaProof();
+     if (!form.isConnected) return;
+     b.textContent = '正在发送…'; status.textContent = '正在发送验证码…';
+     const data = await request('/api/auth/sms/send', {token:null, body:{phone,...humanProof}});
+     cooldown.start(phone, data.resendAfterSeconds ?? 60);
+     if (form.isConnected && form.elements.phone.value.trim() === phone)
+      status.textContent = data.mockCode ? '本地测试验证码：' + data.mockCode + '（未发送短信）' : '验证码已发送，请查看手机短信';
+    } catch (e) {
+     if (!form.isConnected) return;
+     if (e.code === 'SMS_RESEND_COOLDOWN' && e.retryAfterSeconds > 0) {
+      waiting = form.elements.phone.value.trim() === phone;
+      cooldown.start(phone, e.retryAfterSeconds);
+     } else { status.textContent = ''; throw e; }
+    } finally {
+     sending = false;
+     if (form.isConnected) render(remaining);
+    }
+   });
+  }
   $("#auth-form").onsubmit = (e) => {
     e.preventDefault();
     safe(async () => {

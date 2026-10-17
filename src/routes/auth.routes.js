@@ -5,7 +5,7 @@ import { dbGet, dbRun, getSystemSetting } from "../db.js";
 import { config } from "../config.js";
 import { signToken, authMiddleware } from "../middleware/auth.js";
 import { rotateSession, revokeSession, revokeUserSessions } from "../services/sessions.js";
-import { normalizePhone, sendCode, verifyCode } from "../services/sms.js";
+import { normalizePhone, sendCode, verifyCode, SMS_RESEND_INTERVAL_MS } from "../services/sms.js";
 import { verifyCaptcha } from "../services/captcha.js";
 import { resolveValidity } from "../account.js";
 
@@ -144,17 +144,22 @@ router.post("/api/auth/sms/send", async (req, res) => {
 
   // ②③ 限流 + 发送（限流对 Bmob 真实分支同样生效，验证码 5 分钟过期、用一次即失效）
   const result = await sendCode(phone, req.ip);
-  if (!result.ok) return res.status(result.status || 400).json({ error: result.error });
+  if (!result.ok) {
+    if (result.retryAfterSeconds) res.set('Retry-After', String(result.retryAfterSeconds));
+    return res.status(result.status || 400).json({ error: result.error,
+      ...(result.retryAfterSeconds ? { code: 'SMS_RESEND_COOLDOWN', retryAfterSeconds: result.retryAfterSeconds } : {}) });
+  }
+  const resendAfterSeconds = Math.ceil(SMS_RESEND_INTERVAL_MS / 1000);
 
   if (result.mockCode) {
     return res.json({
-      ok: true,
+      ok: true, resendAfterSeconds,
       mockCode: result.mockCode, // 开发环境直接返回
       expiresInSeconds: result.expiresInSeconds,
       message: "开发环境模拟短信已发送",
     });
   }
-  res.json({ ok: true, smsId: result.smsId });
+  res.json({ ok: true, smsId: result.smsId, resendAfterSeconds });
 });
 
 // ======== 短信验证码：预校验（不签发 token、不消费）========
