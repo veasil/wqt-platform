@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import socket
 import time
+import threading
 from urllib.parse import urlsplit
 
 import paramiko
@@ -70,6 +71,11 @@ def run_remote(command, data=None, timeout=30):
     client, channel, transport = connect()
     started = time.monotonic()
     output, errors = bytearray(), bytearray()
+    # Paramiko's exec-request acknowledgement can block independently of socket
+    # read timeouts. Close the transport at the overall deadline as well.
+    deadline = threading.Timer(timeout, client.close)
+    deadline.daemon = True
+    deadline.start()
     try:
         channel.settimeout(10)
         channel.exec_command(command)
@@ -84,7 +90,12 @@ def run_remote(command, data=None, timeout=30):
             if time.monotonic() - started > timeout:
                 raise TimeoutError('Remote result unknown; inspect state before retrying')
             time.sleep(0.05)
+    except (EOFError, OSError, paramiko.SSHException):
+        if time.monotonic() - started >= timeout:
+            raise TimeoutError('Remote result unknown; inspect state before retrying') from None
+        raise
     finally:
+        deadline.cancel()
         client.close()
 
 
@@ -99,12 +110,20 @@ def main():
         command = 'python3 -'
         # Resolve HTTPS on the HK server, avoiding the workstation fake-IP DNS.
         # TLS hostname verification remains enabled. This never sends an SMS.
-        source = '''import json,urllib.request
+        source = '''import json,urllib.request,urllib.error
 opener=urllib.request.build_opener(urllib.request.ProxyHandler({}))
+failed=False
 for host in ['scoring.ai5000days.com','admin.ai5000days.com']:
  for path in ['/api/auth/verification-options','/shared/browser/sms-cooldown.js']:
-  with opener.open('https://'+host+path,timeout=10) as response:
-   print(json.dumps({'host':host,'path':path,'status':response.status}))
+  try:
+   with opener.open('https://'+host+path,timeout=10) as response: status=response.status
+   result={'status':status}
+  except urllib.error.HTTPError as error:
+   failed=True;result={'status':error.code}
+  except (OSError,urllib.error.URLError) as error:
+   failed=True;result={'errorType':type(error).__name__}
+  print(json.dumps({'host':host,'path':path,**result}))
+raise SystemExit(1 if failed else 0)
 '''
     code, output, errors, transport = run_remote(command, source, timeout=45)
     print(json.dumps({'transport': transport, 'exitCode': code}))

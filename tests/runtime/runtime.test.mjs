@@ -119,6 +119,13 @@ test("routing preserves the baseline order plus explicitly approved tenant guard
   expected.splice(expected.findIndex(layer => layer.name === 'serveStatic'), 0, {
     name: 'serveStatic', regexp: String(/^\/shared\/browser\/?(?=\/|$)/i)
   });
+  // WQT-009: frontend transport compression is scoped to these two static mounts.
+  for (const prefix of ['admin', 'enterprise']) {
+    const regexp = String(new RegExp('^\\/' + prefix + '\\/?(?=\\/|$)', 'i'));
+    const index = expected.findIndex(layer => layer.name === 'serveStatic' && layer.regexp === regexp);
+    assert.ok(index >= 0);
+    expected.splice(index, 0, {name: 'compression', regexp});
+  }
   function signature(stack) {
     return stack.map((layer) =>
       layer.route
