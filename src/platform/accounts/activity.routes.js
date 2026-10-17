@@ -7,6 +7,7 @@ import {domainError} from '../../game/activities/link.js';
 import {accountOperation,lockAccounts,authorizeOperation} from './service.js';
 import {generateActivityCode} from '../../game/activities/codes.js';
 import {reviewLevelApplication,setIdentityLevel} from './level-service.js';
+import {applyActivity} from './activity-service.js';
 
 export function registerAccountActivityRoutes(app) {
   const boss=[authMiddleware,requireRole('boss')];
@@ -73,6 +74,6 @@ export function registerAccountActivityRoutes(app) {
       return {result:{ok:true,id}};
     }));
   }));
-  // Personal activity applications and city management writes await their explicit business gate.
-  for (const path of ['/api/activities','/api/activities/apply']) app.post(path,authMiddleware,(_req,res)=>res.status(503).json({error:'活动申请权限边界待确认'}));
+  // Both personal entry points submit for approval; neither bypasses platform review.
+  for (const path of ['/api/activities','/api/activities/apply']) app.post(path,authMiddleware,sessionEndpoint(async(req,res)=>res.json(await applyActivity(req.actor,req.body))));
 }

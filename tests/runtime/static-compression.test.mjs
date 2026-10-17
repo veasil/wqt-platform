@@ -31,6 +31,12 @@ test('frontend assets negotiate compression without changing content, identity r
       const original=await request('/admin/assets/'+name,'gzip;q=0, identity');
       assert.equal(original.status,200);assert.equal(original.headers['content-encoding'],undefined);
       assert.deepEqual(original.body,body);
+      for (const path of ['/player/player.js','/shared/browser/sms-cooldown.js']) {
+        const zipped=await request(path,'gzip');
+        const plain=await request(path,'identity');
+        assert.equal(zipped.status,200);assert.equal(zipped.headers['content-encoding'],'gzip');
+        assert.deepEqual(gunzipSync(zipped.body),plain.body);
+      }
       const api=await request('/api/auth/verification-options','gzip');
       assert.equal(api.status,200);assert.equal(api.headers['content-encoding'],undefined);
       console.log('FRONTEND_COMPRESSION_CONTRACT_PASS');

@@ -33,6 +33,8 @@ jobs:
         run: python tests/browser/verify-admin-delivery.py
       - name: SMS resend countdown across login, registration and password reset
         run: python tests/browser/verify-login-retry.py
+      - name: Player boot recovery and entitled activity application
+        run: python tests/browser/verify-player-availability.py
       - name: SMS provider and countdown contract tests
         run: node --test tests/sms-provider.test.mjs tests/frontend/sms-cooldown.test.mjs
       - name: Fixed renewal and operation recovery rules

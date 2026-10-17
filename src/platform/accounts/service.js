@@ -29,7 +29,7 @@ export async function authorizeOperation(tx, context, { organizationId, city = f
 
 // Persisted results and a unique request ID prevent duplicate delivery even after a lost response.
 // Lock order: request key -> subscription -> sorted accounts -> binding/identity/organization.
-async function operation(context, requestId, kind, input, work) {
+async function operation(context, requestId, kind, input, work, authorizeReplay = authorizeOperation) {
   if (typeof requestId !== 'string' || !/^[a-zA-Z0-9_.:-]{8,120}$/.test(requestId)) throw domainError(400, '需要8至120位唯一requestId');
   const hash = operationHash([kind,context.identityId,context.accountId,input]);
   return withTransaction(async tx => {
@@ -38,7 +38,7 @@ async function operation(context, requestId, kind, input, work) {
     if (previous) {
       if (previous.input_hash !== hash || previous.operation !== kind) throw domainError(409, 'requestId已用于不同操作');
       const target = previous.target_account_id == null ? null : await tx.get('SELECT organization_id FROM accounts WHERE id=?', [previous.target_account_id]);
-      await authorizeOperation(tx,context,{ city:kind === 'bind',organizationId:target?.organization_id });
+      await authorizeReplay(tx,context,{ city:kind === 'bind',organizationId:target?.organization_id });
       return JSON.parse(previous.result_json);
     }
     const { result, subscriptionId = null, targetAccountId = null } = await work(tx);
