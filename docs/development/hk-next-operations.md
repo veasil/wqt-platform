@@ -18,3 +18,9 @@ status只列新版Pod；https仅检查两端公开配置及倒计时静态资源
 重现网络失败时，记录直连/代理分支、失败阶段和耗时；不要把某次本机TLS失败写成线上服务宕机。浏览器探测用实际DOM/API结果，不以第三方字体请求的networkidle判定系统可用。
 
 命令确认及输出读取共用总超时：底层SSH库的exec确认等待不一定受socket读超时控制，工具到期会关闭连接并报告结果未知，不会重发。无网络回归：`python tests/ops/test_hk_next.py`，覆盖确认丢失的超时和成功路径各只提交一次。
+
+## 已观察到的发布约束
+
+2026-10-17：旧GraphQL deploy在gitTrigger关闭时多次忽略gitRef并选main；cancel成功响应也不能证明已阻止实际镜像切换。不要直接把默认deploy/redeploy当作版本发布操作。已验证的路径是从通过CI的精确Git提交生成git archive ZIP，核对SHA256，通过官方现有服务Upload API上传并prepare；保持配置完整，记录upload_id/部署ID/镜像digest。API参考：https://zeabur.com/docs/en-US/developer/public-api 。上线后核查实际Pod镜像、关键源码hash及正式域名health，不能只查平台状态。配置持久化与进程读取分开验证；必要的显式重启沿用本次发布授权，不自动获得其他发布权。
+
+本机默认npm源为npmmirror，但生产构建拒绝远程tarball镜像地址。维护依赖时显式使用官方registry生成可部署的新增锁条目，并核对integrity；不要更改全局代理/registry或放宽平台下载策略来掩盖来源不一致。当前压缩只挂载/admin及/enterprise前端，不作用于/api。
