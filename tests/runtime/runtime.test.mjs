@@ -115,6 +115,10 @@ test("routing preserves the baseline order plus explicitly approved tenant guard
     {name:'<anonymous>',regexp:String(new RegExp('^\\/api\\/downloads\\/?(?=\\/|$)|^\\/api\\/admin\\/downloads\\/?(?=\\/|$)','i'))}
   ];
   expected.splice(expected.findIndex(layer=>layer.path==='/api/admin/cards/:id/versions'),0,...downloads);
+  // WQT-009: shared browser countdown is public static code, before the public directory.
+  expected.splice(expected.findIndex(layer => layer.name === 'serveStatic'), 0, {
+    name: 'serveStatic', regexp: String(/^\/shared\/browser\/?(?=\/|$)/i)
+  });
   function signature(stack) {
     return stack.map((layer) =>
       layer.route
