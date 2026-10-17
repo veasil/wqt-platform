@@ -13,5 +13,19 @@
   },
   "stability": "Application, PostgreSQL and Redis each running 14 hours with zero restarts",
   "scheduledBackup": "Observed successful hourly executions at 2026-10-17 15:17 and 16:17 Asia/Singapore",
-  "scope": "Domain availability and real production database/content; formal team provisioning and real SMS login remain pending"
+  "scope": "Domain availability and real production database/content; formal team provisioning and real SMS login remain pending",
+  "browser": [
+    {
+      "name": "scoring",
+      "url": "https://scoring.ai5000days.com/player/",
+      "status": 200,
+      "pageErrors": []
+    },
+    {
+      "name": "admin",
+      "url": "https://admin.ai5000days.com/admin/login",
+      "status": 200,
+      "pageErrors": []
+    }
+  ]
 }
