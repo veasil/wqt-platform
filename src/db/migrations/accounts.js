@@ -1,5 +1,7 @@
 import {installOrganizationBindingUniqueness} from './organization-binding-uniqueness.js';
-// Additive schema only. No guessing NULL organizations or converting production identities at boot.
+// No guessing historical ownership or converting production identities at boot.
+// Explicit organization-entitlement migration also relaxes legacy fixed-seat checks.
+import {installOrganizationEntitlements} from './organization-entitlements.js';
 export async function migrateAccounts(tx) {
   await tx.get('SELECT pg_advisory_xact_lock(20261011, 6)');
   await tx.run('ALTER TABLE organizations ADD COLUMN IF NOT EXISTS location TEXT');
@@ -134,4 +136,5 @@ export async function migrateAccounts(tx) {
   await tx.run(`CREATE TRIGGER game_sessions_immutable_account BEFORE INSERT OR UPDATE OF account_id, created_by_identity_id, organization_id ON game_sessions
     FOR EACH ROW EXECUTE FUNCTION wqt_guard_session_account()`);
   await installOrganizationBindingUniqueness(tx);
+  await installOrganizationEntitlements(tx);
 }

@@ -4,6 +4,7 @@ import { accountActor, positiveId } from './context.js';
 import { domainError } from '../../game/activities/link.js';
 import bcrypt from 'bcryptjs';
 import {normalizePhone,verifyCode} from '../../services/sms.js';
+import {assertAdditionalBinding} from './organization-capacity.js';
 
 export function addCalendarYear(timestamp) {
   const date = new Date(timestamp);
@@ -50,7 +51,7 @@ async function operation(context, requestId, kind, input, work, authorizeReplay 
 export {operation as accountOperation};
 
 export async function deliverSubscription(context, input) {
-  if (input.organizationId!=null || input.subscriptionId!=null) throw domainError(409,'已有组织只允许续费，升级及重复购买暂不开放');
+  if (input.organizationId!=null || input.subscriptionId!=null) throw domainError(409,'已有组织请使用续费或组织权益调整，不重复购买');
   const name = String(input.organizationName || '').trim();
   const plan = input.plan;
   const location=String(input.location || '').trim();
@@ -122,6 +123,7 @@ export async function bindAccount(context, input) {
       await tx.run('UPDATE subscriptions SET rebind_count=rebind_count+1 WHERE id=?', [subscription.id]);
       await tx.run('UPDATE account_bindings SET ended_at=? WHERE id=?', [Date.now(),current.id]);
     }
+    if (!current) await assertAdditionalBinding(tx,target.organization_id);
     await tx.run('INSERT INTO account_bindings(account_id,identity_id,started_at) VALUES(?,?,?)', [accountId,identityId,Date.now()]);
     return { subscriptionId:target.subscription_id, targetAccountId:accountId, result:{ ok:true,accountId,identityId,rebindCount:(subscription?.rebind_count ?? 0)+(current ? 1:0),changed:true } };
   });

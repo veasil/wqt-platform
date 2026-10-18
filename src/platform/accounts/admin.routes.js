@@ -9,16 +9,18 @@ import {domainError} from '../../game/activities/link.js';
 import {sessionScope} from '../access/session-scope.js';
 import {registerOperationsRoutes} from './operations.routes.js';
 import {operationsSnapshot} from './operations-view.js';
+import {updateOrganizationEntitlements} from './organization-entitlements.js';
 
 const membersSql=`SELECT a.id,a.id AS account_id,a.name,a.role,a.status,a.organization_id,a.subscription_id,
-  b.identity_id,i.phone,i.guardian_name,i.real_name,i.watcher_level,COALESCE(s.valid_until,a.valid_until) AS valid_until
-  FROM accounts a LEFT JOIN account_bindings b ON b.account_id=a.id AND b.ended_at IS NULL
+  b.identity_id,i.phone,i.guardian_name,i.real_name,i.watcher_level,COALESCE(s.valid_until,CASE WHEN o.entitlement_plan IS NOT NULL THEN o.valid_until END,a.valid_until) AS valid_until
+  FROM accounts a JOIN organizations o ON o.id=a.organization_id LEFT JOIN account_bindings b ON b.account_id=a.id AND b.ended_at IS NULL
   LEFT JOIN identities i ON i.id=b.identity_id LEFT JOIN subscriptions s ON s.id=a.subscription_id`;
 
 export function registerAccountAdminRoutes(app) {
   registerOperationsRoutes(app);
   const boss=[authMiddleware,requireRole('boss')];
   const city=[authMiddleware,requireEnterprise];
+  app.post('/api/admin/organizations/update-entitlements',...boss,sessionEndpoint(async(req,res)=>res.json(await updateOrganizationEntitlements(req.actor,req.body))));
   for (const [path,service] of [['/api/admin/subscriptions',deliverSubscription],['/api/admin/subscriptions/renew',renewSubscription],['/api/admin/account-bindings',bindAccount],['/api/admin/identities',createVerifiedIdentity],['/api/admin/status',setStatus]])
     app.post(path,...boss,sessionEndpoint(async(req,res)=>res.json(await service(req.actor,req.body || {}))));
   app.post('/api/enterprise/account-bindings',...city,sessionEndpoint(async(req,res)=>res.json(await bindAccount(req.actor,req.body || {}))));
@@ -31,7 +33,7 @@ export function registerAccountAdminRoutes(app) {
     res.json({identities:await dbAll('SELECT id,phone,guardian_name,real_name,watcher_level,status,trial_activated_at,trial_started_at,trial_until,created_at FROM identities ORDER BY id DESC')});
   }));
   app.get('/api/admin/accounts',...boss,sessionEndpoint(async(_req,res)=>res.json({accounts:await dbAll(`${membersSql} ORDER BY a.id`)})));
-  app.get('/api/admin/organizations',...boss,sessionEndpoint(async(_req,res)=>res.json({organizations:await dbAll(`SELECT o.*,s.id AS subscription_id,s.plan,s.account_count,s.valid_until AS subscription_until,s.rebind_count,
+  app.get('/api/admin/organizations',...boss,sessionEndpoint(async(_req,res)=>res.json({organizations:await dbAll(`SELECT o.*,s.id AS subscription_id,COALESCE(s.plan,o.entitlement_plan) AS plan,COALESCE(s.account_count,o.max_members) AS account_count,COALESCE(s.valid_until,CASE WHEN o.entitlement_plan IS NOT NULL THEN o.valid_until END) AS subscription_until,s.rebind_count,
     (SELECT COUNT(*) FROM accounts a WHERE a.organization_id=o.id) AS current_members FROM organizations o LEFT JOIN subscriptions s ON s.organization_id=o.id ORDER BY o.id`)})));
   app.get('/api/admin/organizations/:id/members',...boss,sessionEndpoint(async(req,res)=>{
     const id=positiveId(req.params.id);
@@ -39,7 +41,7 @@ export function registerAccountAdminRoutes(app) {
     res.json({members:await dbAll(`${membersSql} WHERE a.organization_id=? ORDER BY a.id`,[Number(req.params.id)])});
   }));
   app.get('/api/enterprise/info',...city,sessionEndpoint(async(req,res)=>{
-    const organization=await dbGet('SELECT o.*,s.id AS subscription_id,s.plan,s.account_count,s.valid_until AS subscription_until,s.rebind_count FROM organizations o JOIN subscriptions s ON s.organization_id=o.id WHERE o.id=?',[req.account.organization_id]);
+    const organization=await dbGet('SELECT o.*,s.id AS subscription_id,COALESCE(s.plan,o.entitlement_plan) AS plan,COALESCE(s.account_count,o.max_members) AS account_count,COALESCE(s.valid_until,CASE WHEN o.entitlement_plan IS NOT NULL THEN o.valid_until END) AS subscription_until,s.rebind_count FROM organizations o LEFT JOIN subscriptions s ON s.organization_id=o.id WHERE o.id=?',[req.account.organization_id]);
     const count=await dbGet('SELECT COUNT(*)::int AS count FROM accounts WHERE organization_id=?',[req.account.organization_id]);
     res.json({organization:{...organization,maxMembers:organization.account_count,currentMembers:count.count,validUntil:organization.subscription_until}});
   }));

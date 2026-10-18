@@ -1,0 +1,20 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import vm from 'node:vm';
+test('player bridge returns a credential only to the exact admin parent with a matching request shape',async()=>{
+ const html=await readFile('public/player/admin-session.html','utf8');
+ const posts=[];let receive;
+ const parent={postMessage:(...args)=>posts.push(args)};
+ const window={parent,addEventListener:(_name,handler)=>receive=handler};
+ vm.runInNewContext(html.match(/<script>([\s\S]*?)<\/script>/)[1],{window,localStorage:{getItem:key=>key==='WQT_AUTH_TOKEN'?'synthetic-token':null}});
+ const data={type:'wqt:admin-session-request',requestId:'test-request'};
+ receive({origin:'https://evil.invalid',source:parent,data});
+ receive({origin:'https://admin.ai5000days.com.evil.invalid',source:parent,data});
+ receive({origin:'https://admin.ai5000days.com',source:{},data});
+ receive({origin:'https://admin.ai5000days.com',source:parent,data:{...data,requestId:'a'.repeat(101)}});
+ assert.equal(posts.length,0);
+ receive({origin:'https://admin.ai5000days.com',source:parent,data});
+ assert.equal(posts.length,1);assert.equal(posts[0][0].token,'synthetic-token');assert.equal(posts[0][0].requestId,'test-request');
+ assert.equal(posts[0][1],'https://admin.ai5000days.com');
+});

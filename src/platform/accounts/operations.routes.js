@@ -1,3 +1,4 @@
+import {organizationCapacity} from './organization-capacity.js';
 import {validatePlayerSetting} from '../../game/player/config.js';
 import {dbAll} from '../../db.js';
 import {authMiddleware} from '../../middleware/auth.js';
@@ -17,6 +18,9 @@ const sensitive=key=>/(KEY|SECRET|TOKEN|PASSWORD)/i.test(key) || ['BMOB_APP_ID',
 const orgId=value=>value===0 || value==='0' ? 0:positiveId(value);
 function audited(req,kind,input,work) {
   return accountOperation(req.actor,req.body?.requestId,kind,input,async tx=>{
+    // Invitation creation and entitlement edits share subscription -> actor -> organization order.
+    if(kind==='create-invite' && input.organizationId!==0)
+      await tx.get('SELECT id FROM subscriptions WHERE organization_id=? FOR UPDATE',[input.organizationId]);
     await lockAccounts(tx,[req.actor.accountId]);
     await authorizeOperation(tx,req.actor);
     return {result:await work(tx)};
@@ -52,7 +56,7 @@ export function registerOperationsRoutes(app) {
     if(!accountId || !reason) throw domainError(400,'请选择免费守望者账号并填写开启原因');
     res.json(await accountOperation(req.actor,req.body.requestId,'grant-trial',{accountId,reason},async tx=>{
       await lockAccounts(tx,[req.actor.accountId,accountId]);await authorizeOperation(tx,req.actor);
-      const target=await tx.get(`SELECT a.*,o.status AS organization_status,COALESCE(s.valid_until,a.valid_until) AS until,b.identity_id
+      const target=await tx.get(`SELECT a.*,o.status AS organization_status,COALESCE(s.valid_until,CASE WHEN o.entitlement_plan IS NOT NULL THEN o.valid_until END,a.valid_until) AS until,b.identity_id
         FROM accounts a JOIN organizations o ON o.id=a.organization_id LEFT JOIN subscriptions s ON s.id=a.subscription_id
         JOIN account_bindings b ON b.account_id=a.id AND b.ended_at IS NULL WHERE a.id=?`,[accountId]);
       const now=Date.now();
@@ -80,10 +84,12 @@ export function registerOperationsRoutes(app) {
       const org=await tx.get("SELECT id FROM organizations WHERE id=? AND status='active' FOR SHARE",[organizationId]);
       if(!org) throw domainError(403,'组织已停用或不存在');
       if(organizationId!==0) {
-        const sub=await tx.get('SELECT valid_until FROM subscriptions WHERE organization_id=? FOR UPDATE',[organizationId]);
-        if(!sub || sub.valid_until<=Date.now()) throw domainError(403,'组织权益未开启或已到期');
+        const rights=await organizationCapacity(tx,organizationId);
+        if(!rights.enabled || rights.validUntil<=Date.now()) throw domainError(403,'组织权益未开启或已到期');
         const vacant=await tx.get(`SELECT COUNT(*)::int AS count FROM accounts a WHERE a.organization_id=? AND a.status='active' AND a.role='watcher' AND NOT EXISTS(SELECT 1 FROM account_bindings b WHERE b.account_id=a.id)`,[organizationId]);
-        if(!vacant.count) throw domainError(409,'组织没有可首次绑定的空闲守望者账号');
+        const occupied=await tx.get('SELECT COUNT(*)::int AS n FROM account_bindings b JOIN accounts a ON a.id=b.account_id WHERE a.organization_id=? AND b.ended_at IS NULL',[organizationId]);
+        vacant.count=Math.min(vacant.count,Math.max(0,rights.capacity-occupied.n));
+        if(!vacant.count) throw domainError(409,'组织没有可首次绑定的空闲守望者账号，或已达到容量上限');
         if(maxUses>vacant.count) throw domainError(400,`当前只有${vacant.count}个首次绑定空位，请减少邀请码使用次数`);
       }
       const code=await generateInviteCode(),expiresAt=Date.now()+days*86400000;

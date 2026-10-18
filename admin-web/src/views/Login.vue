@@ -26,6 +26,7 @@
         <el-button type="primary" :loading="loading" @click="handlePhone" style="width:100%">登 录</el-button>
       </el-form>
       <el-button v-if="currentSession" style="width:100%; margin-top:12px" :loading="loading" @click="continueSession">使用当前登录身份继续</el-button>
+      <el-button v-if="!legacy" style="width:100%; margin-top:12px" :loading="loading" @click="continuePlayerSession">沿用桌游端登录身份</el-button>
 
 
       <p v-if="cooldownNotice" role="status" style="text-align:center">{{ cooldownMessage }}</p>
@@ -45,6 +46,7 @@ import { captchaProof } from '../utils/captcha'
 import { Phone, Lock, Message } from '@element-plus/icons-vue'
 import {existingIdentitySession} from '../../../shared/browser/identity-session.js'
 import {createSmsCooldown} from '../../../shared/browser/sms-cooldown.js'
+import {playerIdentitySession} from '../../../shared/browser/admin-session-bridge.js'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -62,6 +64,20 @@ async function continueSession(){
  loading.value=true;error.value=''
  try{auth.setAuth(currentSession.value.token,currentSession.value.user);await router.push({name:'SelectAccount'})}
  catch(e){error.value=e.message || '登录恢复失败'}finally{loading.value=false}
+}
+async function continuePlayerSession(){
+ loading.value=true;error.value=''
+ try{
+  const token=location.hostname==='admin.ai5000days.com' ? await playerIdentitySession():(await existingIdentitySession())?.token
+  if(!token)throw new Error('桌游端尚未登录，请先在桌游端登录')
+  // A failed handoff must not let the shared HTTP interceptor clear another valid admin login.
+  const response=await fetch('/api/auth/session',{headers:{Authorization:'Bearer '+token},cache:'no-store',signal:AbortSignal.timeout(8000)})
+  const data=await response.json()
+  if(!response.ok)throw new Error(data.error||'桌游登录已失效，请重新登录')
+  if(!data.accounts?.some(a=>a.role==='boss'))throw new Error('当前桌游身份没有可用的平台管理账号')
+  auth.setAuth(token,data.user)
+  await router.push({name:'SelectAccount'})
+ }catch(e){error.value=e.response?.data?.error || e.message || '登录接续失败'}finally{loading.value=false}
 }
 
 // The server supplies the remaining wait; use a deadline so background tabs catch up.
