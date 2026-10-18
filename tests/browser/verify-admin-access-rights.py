@@ -11,18 +11,20 @@ def main():
  with sync_playwright() as p:
   browser=p.chromium.launch(channel=os.environ.get('WQT_BROWSER_CHANNEL') or None,headless=True)
   try:
-   for mode in ['handoff','missing','no-role','rights']:
+   for mode in ['handoff','missing','no-role','invalid','rights']:
     c=browser.new_context();page=c.new_page();calls=[];errors=[]
     page.on('pageerror',lambda e:errors.append(str(e)))
     user={'identityId':1,'accountId':11,'role':'boss','guardianName':'示例管理员'}
     accounts=[{'id':11,'role':'watcher' if mode=='no-role' else 'boss','name':'平台账号','status':'active','valid_until':2000000000000}]
     org={'id':77,'name':'示例组织','plan':'group','subscription_id':77,'account_count':5,'current_members':5,'bound_accounts':3,'subscription_until':2000000000000,'rebind_count':1,'status':'active'}
+    if mode=='invalid':c.add_init_script("if(location.origin==='"+ADMIN+"')localStorage.setItem('aw_token','existing-admin-session')")
     if mode!='missing':c.add_init_script("if(location.origin==='"+SCORING+"')localStorage.setItem('WQT_AUTH_TOKEN','synthetic-session')")
     if mode=='rights':c.add_init_script("if(location.origin==='"+ADMIN+"'){localStorage.setItem('aw_token','synthetic-session');localStorage.setItem('aw_user',"+json.dumps(json.dumps(user))+" )}")
     def route(route):
      url=urlsplit(route.request.url)
      if url.hostname not in ['admin.ai5000days.com','scoring.ai5000days.com']:return route.abort()
      if url.path.startswith('/api/'):
+      if mode=='invalid' and url.path=='/api/auth/session' and route.request.headers.get('authorization')=='Bearer synthetic-session':return route.fulfill(status=401,content_type='application/json',body=json.dumps({'error':'桌游登录已失效'}))
       calls.append({'path':url.path,'headers':route.request.headers,'body':route.request.post_data_json if route.request.post_data else None})
       data={'/api/settings':{'accountModel':'accounts','settings':[]},'/api/auth/verification-options':{'captchaEnabled':False},'/api/auth/session':{'user':user,'accounts':accounts,'session':{'expiresAt':2000000000000}},'/api/me':{'user':user},'/api/auth/accounts':{'accounts':accounts},'/api/admin/organizations/77':{'organization':org,'accounts':[],'users':[]}}.get(url.path,{})
       if url.path=='/api/admin/organizations/update-entitlements':
@@ -53,9 +55,12 @@ def main():
       assert page.evaluate("localStorage.getItem('aw_token')")=='synthetic-session'
       assert any(x['path']=='/api/auth/session' and x['headers'].get('authorization')=='Bearer synthetic-session' for x in calls)
      elif mode=='missing':expect(page.get_by_text('桌游端尚未登录，请先在桌游端登录',exact=True)).to_be_visible()
+     elif mode=='invalid':
+      expect(page.get_by_text('桌游登录已失效',exact=True)).to_be_visible()
+      assert page.evaluate("localStorage.getItem('aw_token')")=='existing-admin-session'
      else:expect(page.get_by_text('当前桌游身份没有可用的平台管理账号',exact=True)).to_be_visible()
      assert not any(x['path']=='/api/auth/login' for x in calls)
-     if mode!='handoff':assert not page.evaluate("localStorage.getItem('aw_token')")
+     if mode not in ['handoff','invalid']:assert not page.evaluate("localStorage.getItem('aw_token')")
     assert not errors,errors
     print(json.dumps({'mode':mode,'passed':True,'noNewLogin':True,'pageErrors':errors}));c.close()
   finally:browser.close()

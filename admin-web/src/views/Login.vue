@@ -68,9 +68,12 @@ async function continueSession(){
 async function continuePlayerSession(){
  loading.value=true;error.value=''
  try{
-  const existing=await existingIdentitySession()
-  const token=existing?.accounts?.some(a=>a.role==='boss') ? existing.token:await playerIdentitySession()
-  const {data}=await api.get('/api/auth/session',{headers:{Authorization:'Bearer '+token}})
+  const token=location.hostname==='admin.ai5000days.com' ? await playerIdentitySession():(await existingIdentitySession())?.token
+  if(!token)throw new Error('桌游端尚未登录，请先在桌游端登录')
+  // A failed handoff must not let the shared HTTP interceptor clear another valid admin login.
+  const response=await fetch('/api/auth/session',{headers:{Authorization:'Bearer '+token},cache:'no-store',signal:AbortSignal.timeout(8000)})
+  const data=await response.json()
+  if(!response.ok)throw new Error(data.error||'桌游登录已失效，请重新登录')
   if(!data.accounts?.some(a=>a.role==='boss'))throw new Error('当前桌游身份没有可用的平台管理账号')
   auth.setAuth(token,data.user)
   await router.push({name:'SelectAccount'})
