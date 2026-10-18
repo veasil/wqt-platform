@@ -4,6 +4,7 @@ import { withTransaction,dbGet } from '../../db.js';
 import { normalizePhone,verifyCode } from '../../services/sms.js';
 import { domainError } from '../../game/activities/link.js';
 import {verifyIdentityProof} from './verification.js';
+import {assertAdditionalBinding} from './organization-capacity.js';
 
 export async function registerWithInvite(input,{verifiedIdentity=null}={}) {
   const phone=normalizePhone(input.phone || '');
@@ -46,12 +47,12 @@ export async function registerWithInvite(input,{verifiedIdentity=null}={}) {
     if (!Number.isSafeInteger(organizationId) || organizationId<0) throw domainError(400,'邀请码组织无效');
     let account;
     if (organizationId!==0) {
-      const subscription=await tx.get('SELECT * FROM subscriptions WHERE organization_id=? FOR UPDATE',[organizationId]);
-      if (!subscription || subscription.valid_until<=Date.now()) throw domainError(403,'组织权益不存在或已到期');
+      const rights=await assertAdditionalBinding(tx,organizationId),subscription=rights.subscription;
+      if (!rights.enabled || rights.validUntil<=Date.now()) throw domainError(403,'组织权益不存在或已到期');
       // Empty commercial slots are pre-delivered; registration never grows the purchased capacity.
-      account=await tx.get(`SELECT a.* FROM accounts a WHERE a.organization_id=? AND a.subscription_id=? AND a.status='active' AND a.role='watcher'
+      account=await tx.get(`SELECT a.* FROM accounts a WHERE a.organization_id=? AND a.subscription_id IS NOT DISTINCT FROM ? AND a.status='active' AND a.role='watcher'
         AND NOT EXISTS(SELECT 1 FROM account_bindings b WHERE b.account_id=a.id)
-        ORDER BY a.id LIMIT 1 FOR UPDATE OF a`,[organizationId,subscription.id]);
+        ORDER BY a.id LIMIT 1 FOR UPDATE OF a`,[organizationId,subscription?.id??null]);
       if (!account) throw domainError(409,'组织没有首次绑定的空闲账号');
     }
     const org=await tx.get("SELECT id FROM organizations WHERE id=? AND status='active' FOR SHARE",[organizationId]);

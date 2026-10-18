@@ -1,0 +1,10 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>登录身份接续</title>
+<script>
+window.addEventListener('message',function(event){
+  if(event.origin!=='https://admin.ai5000days.com'||event.source!==window.parent||window.parent===window)return;
+  if(event.data?.type!=='wqt:admin-session-request'||typeof event.data.requestId!=='string'||event.data.requestId.length>100)return;
+  var token=null;
+  try{token=localStorage.getItem('WQT_AUTH_TOKEN')}catch{}
+  event.source.postMessage({type:'wqt:admin-session-result',requestId:event.data.requestId,token:token},'https://admin.ai5000days.com');
+});
+</script></html>

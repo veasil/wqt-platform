@@ -26,13 +26,13 @@ export async function operationsSnapshot() {
   const [identities,rows,orgs,sessionStats]=await Promise.all([
     dbAll('SELECT id,phone,username,real_name,guardian_name,watcher_level,status,credential_version,trial_activated_at,trial_granted_at,trial_grant_consumed_at,trial_started_at,trial_until,created_at FROM identities ORDER BY id DESC'),
     dbAll(`SELECT a.*,o.name AS organization_name,o.status AS organization_status,o.location,
-      s.plan,s.rebind_count,COALESCE(s.valid_until,a.valid_until) AS valid_until,
+      COALESCE(s.plan,o.entitlement_plan) AS plan,s.rebind_count,COALESCE(s.valid_until,CASE WHEN o.entitlement_plan IS NOT NULL THEN o.valid_until END,a.valid_until) AS valid_until,
       b.identity_id,i.guardian_name,i.real_name,i.phone,i.status AS identity_status,i.trial_until,i.trial_granted_at,i.trial_grant_consumed_at
       FROM accounts a JOIN organizations o ON o.id=a.organization_id
       LEFT JOIN subscriptions s ON s.id=a.subscription_id
       LEFT JOIN account_bindings b ON b.account_id=a.id AND b.ended_at IS NULL
       LEFT JOIN identities i ON i.id=b.identity_id ORDER BY a.id`),
-    dbAll(`SELECT o.*,s.id AS subscription_id,s.plan,s.account_count,s.valid_until AS subscription_until,s.rebind_count
+    dbAll(`SELECT o.*,s.id AS subscription_id,COALESCE(s.plan,o.entitlement_plan) AS plan,COALESCE(s.account_count,o.max_members) AS account_count,COALESCE(s.valid_until,CASE WHEN o.entitlement_plan IS NOT NULL THEN o.valid_until END) AS subscription_until,s.rebind_count
       FROM organizations o LEFT JOIN subscriptions s ON s.organization_id=o.id ORDER BY o.id`),
     dbAll(`SELECT organization_id,COUNT(*)::int AS total_sessions,COUNT(*) FILTER(WHERE status='active')::int AS active_sessions,
       ROUND(AVG(final_score),1) AS avg_score FROM game_sessions WHERE account_id IS NOT NULL AND status!='abandoned' GROUP BY organization_id`)

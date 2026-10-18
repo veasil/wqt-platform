@@ -83,7 +83,7 @@ export function createApp({
             "https://ai5000days-wqt-next-live-hk.oss-cn-hongkong.aliyuncs.com",
           ],
           "connect-src": ["'self'", "https://turing.captcha.qcloud.com"],
-          "frame-src": ["'self'", "https://turing.captcha.qcloud.com", "https://turing.captcha.gtimg.com"],
+          "frame-src": ["'self'", "https://scoring.ai5000days.com", "https://turing.captcha.qcloud.com", "https://turing.captcha.gtimg.com"],
           "worker-src": ["'self'", "blob:"],
           "frame-ancestors": ["'none'"],
           "object-src": ["'none'"],
@@ -128,6 +128,13 @@ export function createApp({
   }
 
   // 静态资源
+  app.get('/player/admin-session.html', (req,res) => {
+    if(req.hostname!=='scoring.ai5000days.com')return res.sendStatus(404);
+    res.removeHeader('X-Frame-Options');
+    res.set('Content-Security-Policy',String(res.get('Content-Security-Policy')).replace("frame-ancestors 'none'","frame-ancestors https://admin.ai5000days.com"));
+    res.set('Cache-Control','no-store');
+    res.sendFile(path.join(ROOT_DIR,'public','player','admin-session.html'));
+  });
   app.use("/shared/browser", compression(), express.static(path.join(ROOT_DIR, "shared", "browser")));
   app.use("/player", compression());
   app.use(express.static(path.join(ROOT_DIR, "public")));
