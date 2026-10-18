@@ -19,8 +19,11 @@ export async function run(){
   assert.ok(rows.every(row=>row.after.capacity===3));
   assert.equal((await dbGet('SELECT COUNT(*)::int AS n FROM accounts WHERE organization_id=?',[group.organizationId])).n,5);
   assert.equal((await dbGet("SELECT COUNT(*)::int AS n FROM account_operations WHERE operation='organization-entitlements'")).n,1);
-  for(let i=0;i<3;i++)await bindAccount(boss,{requestId:randomUUID(),accountId:group.accountIds[i],identityId:people[i+1]});
-  await assert.rejects(bindAccount(boss,{requestId:randomUUID(),accountId:group.accountIds[3],identityId:people[4]}),/容量/);
+  for(let i=0;i<2;i++)await bindAccount(boss,{requestId:randomUUID(),accountId:group.accountIds[i],identityId:people[i+1]});
+  const race=await Promise.allSettled([2,3].map(index=>bindAccount(boss,{requestId:randomUUID(),accountId:group.accountIds[index],identityId:people[index+1]})));
+  assert.equal(race.filter(row=>row.status==='fulfilled').length,1);
+  assert.match(race.find(row=>row.status==='rejected').reason.message,/容量/);
+  assert.equal((await dbGet('SELECT COUNT(*)::int AS n FROM account_bindings b JOIN accounts a ON a.id=b.account_id WHERE a.organization_id=? AND b.ended_at IS NULL',[group.organizationId])).n,3);
   await updateOrganizationEntitlements(boss,{...input,requestId:randomUUID(),capacity:2});
   assert.ok(await accountActor({identityId:people[1],accountId:group.accountIds[0]}));
   await bindAccount(boss,{requestId:randomUUID(),accountId:group.accountIds[0],identityId:people[5]});
