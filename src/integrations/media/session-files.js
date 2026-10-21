@@ -74,12 +74,13 @@ export async function listSessionFiles(userId) {
   const actor = await currentActor(userId);
   const scope = sessionScope(actor, "s", { managed: true });
   const rows = await dbAll(
-    `SELECT sf.id, sf.filename, sf.media_type, sf.size, sf.created_at
+    `SELECT sf.id, sf.session_id, sf.filename, sf.media_type, sf.size, sf.created_at
      FROM session_files sf JOIN game_sessions s ON s.id = sf.session_id
      WHERE ${scope.sql} ORDER BY sf.created_at DESC`,
     scope.params,
   );
   return rows.map((row) => ({
+    sessionId: row.session_id,
     name: row.filename,
     type: row.media_type?.startsWith("audio/")
       ? "audio"

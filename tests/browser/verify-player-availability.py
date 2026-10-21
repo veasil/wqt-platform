@@ -26,14 +26,15 @@ def main():
        '/api/auth/verification-options':{'captchaEnabled':False},
        '/api/auth/session':{'user':user,'accounts':accounts,'session':{},'requiresAccountSelection':False},
        '/api/me':{'user':user},'/api/settings':{'accountModel':'accounts','settings':[]},
-       '/api/card-groups':{'groups':[]},'/api/player/feedback':{'pending':[]},
+       '/api/card-groups':{'groups':[{'id':1,'name':'示例卡组','is_default':1}]},'/api/player/feedback':{'pending':[]},
        '/api/game/last-session':{'session':None},'/api/me/activities':{'activities':[]},
        '/api/me/activities/created':{'activities':created},
       }.get(url.path,{})
       if url.path=='/api/activities/apply':
        body=json.loads(route.request.post_data);calls.append(body)
-       created.append({'id':81,'name':body['name'],'activity_code':'ATEST','status':'pending'})
-       data={'ok':True,'id':81,'status':'pending','activity_code':'ATEST'}
+       created.append({'id':81,'name':body['name'],'organizer':body['location'],'game_config_json':json.dumps(body['configuration']),'activity_code':'ATEST','status':'active'})
+       data={'ok':True,'id':81,'status':'active','activity_code':'ATEST'}
+      if url.path=='/api/activities/by-code/ATEST':data={'activity':created[0]}
       return route.fulfill(content_type='application/json',body=json.dumps(data))
      target=ROOT/url.path.lstrip('/') if url.path.startswith('/shared/browser/') else ROOT/'public'/url.path.lstrip('/')
      if target.is_dir():target=target/'index.html'
@@ -68,12 +69,13 @@ def main():
      page.locator('#activity-apply-form [name=name]').fill('示例活动')
      page.locator('#activity-apply-form [name=location]').fill('示例地点')
      page.locator('#activity-apply-form [type=submit]').click()
-     expect(page.get_by_text('待审核 · 活动码 ATEST',exact=True)).to_be_visible()
+     expect(page.locator('.activity-code-result')).to_have_text('ATEST')
      assert len(calls)==1 and calls[0]['requestId']
+     assert calls[0]['configuration']['cardGroupId']==1 and calls[0]['started_at']>0
      user['validityValid']=False
      page.locator('#dialog-close').click()
      page.locator('#create-activity').click()
-     expect(page.get_by_text('当前账号无有效权益，暂不能申请活动。你仍可按账号权益使用活动码参与已有活动。',exact=True)).to_be_visible()
+     expect(page.get_by_text('当前账号无有效正式权益，暂不能创建活动。',exact=True)).to_be_visible()
      assert len(calls)==1
     else:expect(page.locator('#enter')).to_be_visible()
     assert '非正式计分' not in page.locator('body').inner_text()

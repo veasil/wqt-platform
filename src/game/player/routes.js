@@ -13,6 +13,7 @@ import {playerScore} from './settlement.js';
 import { initialState, applyAction } from "./state.js";
 import { registerFeedbackRoutes } from "./feedback.js";
 import { defaultQuestions, validatePlayerSetting } from "./config.js";
+import {validateAgeRange} from '../../../shared/browser/game-configuration.js';
 export async function questionnaire() {
   const row = await dbGet(
     "SELECT value FROM system_settings WHERE key='PLAYER_QUESTIONNAIRE'",
@@ -89,7 +90,7 @@ export function registerPlayerRoutes(app) {
       if(body.players && (!Array.isArray(body.players)||body.players.length>30||!body.players.every(p=>typeof p==='string'&&p.length<=40)))throw domainError(400,'参与者信息无效');
       const group=await cardsDbGet('SELECT id,name,released_ids_json FROM card_groups WHERE id=?',[Number(body.cardGroupId)]);
       if(!group)throw domainError(400,'请选择有效卡牌组');
-      const input = {requestId:body.requestId,activityCode:body.activityCode,location:body.location.trim(),players:body.players||[],cardGroupId:group.id,mode:String(body.mode||'standard').slice(0,50),settings:{duration:state.duration,counts:state.counts,player:true,cardSnapshot:{groupId:group.id,name:group.name,releasedIds:JSON.parse(group.released_ids_json||"[]")},questionnaire:survey}};
+      const input = {requestId:body.requestId,activityCode:body.activityCode,location:body.location.trim(),players:body.players||[],cardGroupId:group.id,mode:String(body.mode||'standard').slice(0,50),settings:{duration:state.duration,counts:state.counts,ageRange:validateAgeRange(body.settings?.ageRange),player:true,cardSnapshot:{groupId:group.id,name:group.name,releasedIds:JSON.parse(group.released_ids_json||"[]")},questionnaire:survey}};
       const result = await startSession(req.actor, input,{playerEntry:true});
       res.json({ ...result, initialState: state });
     }),

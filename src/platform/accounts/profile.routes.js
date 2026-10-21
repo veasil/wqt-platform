@@ -15,7 +15,7 @@ export function registerAccountProfileRoutes(app) {
   app.get('/api/me/entitlements',authMiddleware,sessionEndpoint(async(req,res)=>{
    const experience=trialStatus(req.identity);
    const paid=req.account.paid_valid;
-   res.set('Cache-Control','no-store').json({account:{id:req.account.id,name:req.account.name,role:req.account.role,organizationId:req.account.organization_id,plan:req.account.plan,paidValid:paid,validUntil:req.account.valid_until},experience:{...experience,canActivate:experience.pending&&!experience.active&&!paid&&req.account.role==='watcher'},capabilities:{startGame:paid||experience.active,requiresActivityCode:true,downloads:paid,aiFeedback:paid,learningStatus:'separate_platform'}});
+   res.set('Cache-Control','no-store').json({account:{id:req.account.id,name:req.account.name,role:req.account.role,organizationId:req.account.organization_id,plan:req.account.plan,paidValid:paid,validUntil:req.account.valid_until},experience:{...experience,canActivate:experience.pending&&!experience.active&&!paid&&req.account.role==='watcher'},capabilities:{startGame:paid||experience.active,requiresActivityCode:false,downloads:paid,aiFeedback:paid,learningStatus:'separate_platform'}});
   }));
   app.post('/api/me/trial/activate',authMiddleware,sessionEndpoint(async(req,res)=>res.json(await activateTrial(req.actor,req.body?.requestId))));
   app.get('/api/me',authMiddleware,sessionEndpoint(async(req,res)=>res.json({user:identityUser(req.identity,req.account)})));
@@ -40,7 +40,10 @@ export function registerAccountProfileRoutes(app) {
     const scope=sessionScope(req.account,'s');
     const limit=Math.max(1,Math.min(Number(req.query.limit) || 50,200));
     const offset=Math.max(0,Number(req.query.offset) || 0);
-    const sessions=await dbAll(`SELECT s.* FROM game_sessions s WHERE ${scope.sql} AND status!='abandoned' ORDER BY started_at DESC LIMIT ? OFFSET ?`,[...scope.params,limit,offset]);
+    const sessions=await dbAll(`SELECT s.*,
+      (SELECT a.name FROM activity_sessions link JOIN activities a ON a.id=link.activity_id WHERE link.session_id=s.id ORDER BY a.id LIMIT 1) AS activity_name,
+      EXISTS(SELECT 1 FROM player_feedback f WHERE f.session_id=s.id AND f.identity_id=? AND f.account_id=s.account_id) AS has_feedback
+      FROM game_sessions s WHERE ${scope.sql} AND status!='abandoned' ORDER BY started_at DESC LIMIT ? OFFSET ?`,[req.identity.id,...scope.params,limit,offset]);
     const total=await dbGet(`SELECT COUNT(*) AS count FROM game_sessions s WHERE ${scope.sql} AND status!='abandoned'`,scope.params);
     res.json({sessions,total:total.count});
   }));
@@ -70,6 +73,20 @@ export function registerAccountProfileRoutes(app) {
       return tx.run('INSERT INTO user_feedback(identity_id,account_id,type,content,activity_id,session_id) VALUES(?,?,?,?,?,?)',[req.identity.id,actor.id,type,String(content).trim(),activityId || null,sessionId || null]);
     });
     res.json({ok:true,id:result.lastID});
+  }));
+  app.get('/api/me/feedback',authMiddleware,sessionEndpoint(async(req,res)=>{
+    // Feedback remains private to the submitting identity and the current account.
+    // Joining session scope also removes access after leaving the original organization.
+    const scope=sessionScope(req.account,'s');
+    const feedback=await dbAll(`SELECT f.id,f.type,f.content,f.created_at,f.reviewed,f.session_id
+      FROM user_feedback f LEFT JOIN game_sessions s ON s.id=f.session_id
+      WHERE f.identity_id=? AND f.account_id=? AND (f.session_id IS NULL OR (${scope.sql}))
+      ORDER BY f.created_at DESC,f.id DESC LIMIT 200`,[req.identity.id,req.account.id,...scope.params]);
+    const surveys=await dbAll(`SELECT f.session_id,f.questionnaire_json,f.answers_json,f.created_at,s.location
+      FROM player_feedback f JOIN game_sessions s ON s.id=f.session_id
+      WHERE f.identity_id=? AND f.account_id=? AND ${scope.sql}
+      ORDER BY f.created_at DESC,f.session_id DESC LIMIT 200`,[req.identity.id,req.account.id,...scope.params]);
+    res.set('Cache-Control','no-store').json({feedback,surveys});
   }));
   app.post('/api/me/level-application',authenticateIdentity,sessionEndpoint(async(req,res)=>{
     const result=await withTransaction(async tx=>{

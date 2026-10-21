@@ -3,6 +3,8 @@ import { makePgApi, createPool } from "./sql-pg.js";
 import { migrateSessionOwnership } from "./db/migrations/session-ownership.js";
 import { migrateDownloads } from "./db/migrations/downloads.js";
 import { migratePlayer } from "./db/migrations/player.js";
+import { migrateAutomaticActivities } from "./db/migrations/automatic-activities.js";
+import { migrateActivityConfiguration } from "./db/migrations/activity-configuration.js";
 import { migrateAccounts } from "./db/migrations/accounts.js";
 import { accountModelEnabled } from "./platform/accounts/model.js";
 
@@ -229,7 +231,11 @@ export async function initDb({ connectionString } = {}) {
   await withTransaction(migrateSessionOwnership);
   if (useAccounts) await withTransaction(migrateAccounts);
   await migrateDownloads(dbRun);
-  if(useAccounts) await withTransaction(migratePlayer);
+  if(useAccounts) {
+    await withTransaction(migratePlayer);
+    await withTransaction(migrateAutomaticActivities);
+    await withTransaction(migrateActivityConfiguration);
+  }
   console.log('✅ Main database initialized (PostgreSQL)');
 }
 

@@ -35,7 +35,7 @@ async function harness(t){
  const accounts=[{id:11,name:'示例社工室',role:'watcher',status:'active',valid_until:Date.now()+86400000},{id:12,name:'示例学校',role:'watcher',status:'active',valid_until:Date.now()+86400000}];
  await page.route('http://localhost/**',async route=>{
   const url=new URL(route.request().url());
-  if(url.pathname==='/shared/browser/sms-cooldown.js')return route.fulfill({contentType:'text/javascript',body:await readFile(resolve('shared/browser/sms-cooldown.js'))});
+  if(url.pathname.startsWith('/shared/browser/'))return route.fulfill({contentType:'text/javascript',body:await readFile(resolve('.'+url.pathname))});
   if(url.pathname.startsWith('/api/')){
    calls.push({path:url.pathname,body:route.request().postData(),headers:route.request().headers()});
    let data={};
@@ -90,7 +90,7 @@ test('score controls preview the radar, clamp values, and submit an optional rea
  assert.deepEqual(JSON.parse(calls.find(c=>c.path==='/api/player/action').body).values,[0,2,2,6,6]);
  assert.equal(JSON.parse(calls.find(c=>c.path==='/api/player/action').body).reason,'');
  assert.equal(await page.locator('.radar-caption').count(),0);
- assert.equal(await page.locator('#nav-me').getAttribute('aria-label'),'我的，1 场待完成反馈');
+ assert.equal(await page.locator('#nav-me').getAttribute('aria-label'),'个人主页，1 场待完成反馈');
  await page.evaluate(()=>fixture.setPending([]));
  assert.equal(await page.locator('#nav-me').getAttribute('class'),'');
 });
@@ -164,13 +164,14 @@ test('successful audio upload clears durable draft; unavailable storage keeps a 
 test('multiple paid accounts use activity organization and carry its code into setup; unknown organization cannot select',async t=>{
  const h=await harness(t);if(!h)return;const {page,calls}=h;
  await page.evaluate(()=>fixture.chooseAccount());
+ await page.getByText('使用活动码匹配账号',{exact:true}).click();
  await page.locator('[name=code]').fill('UNKNOWN');
  await page.getByRole('button',{name:'查找活动并进入'}).click();
  await page.waitForFunction(()=>document.querySelector('#page-error').textContent.includes('没有绑定'));
  assert.equal(calls.filter(c=>c.path==='/api/auth/select-account').length,0);
  await page.locator('[name=code]').fill('SCHOOL');
  await page.getByRole('button',{name:'查找活动并进入'}).click();
- await page.waitForSelector('#code-form');
+ await page.waitForSelector('#skip-activity');
  assert.deepEqual(JSON.parse(calls.find(c=>c.path==='/api/auth/select-account').body),{accountId:12});
  assert.equal(await page.locator('#code-form [name=code]').inputValue(),'SCHOOL');
 });
@@ -178,9 +179,9 @@ test('multiple paid accounts use activity organization and carry its code into s
 test('a single valid paid watcher skips selection and unpaid study does not issue a request',async t=>{
  const h=await harness(t);if(!h)return;const {page,calls,accounts}=h;
  accounts.splice(1,1);
- accounts.push({id:13,role:'watcher',status:'active',valid_until:null},{id:14,role:'boss',status:'active',valid_until:null});
+ accounts.push({id:13,role:'watcher',status:'active',valid_until:null},{id:14,role:'operator',status:'active',valid_until:Date.now()+86400000});
  await page.evaluate(()=>fixture.chooseAccount());
- await page.waitForSelector('#code-form');
+ await page.waitForSelector('#skip-activity');
  assert.deepEqual(JSON.parse(calls.find(c=>c.path==='/api/auth/select-account').body),{accountId:11});
  const error=await page.evaluate(async()=>{fixture.setPaid(false);try{await fixture.studyMaterials()}catch(e){return e.message}});
  assert.match(error,/有效付费权益/);
@@ -192,7 +193,7 @@ for(const role of ['watcher','enterprise','boss'])test(`one ${role} account ente
  accounts.splice(1);accounts[0].role=role;
  if(role==='watcher')accounts[0].valid_until=null;
  await page.evaluate(()=>fixture.chooseAccount());
- await page.waitForSelector('#code-form');
+ await page.waitForSelector('#skip-activity');
  assert.deepEqual(JSON.parse(calls.find(c=>c.path==='/api/auth/select-account').body),{accountId:11});
  assert.equal(calls.filter(c=>c.path.startsWith('/api/auth/activity-account/')).length,0);
 });
