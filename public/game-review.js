@@ -1007,7 +1007,7 @@
     return { structured, radars, reportHtml, missingImages:scenes.length-sceneImages.length };
   }
 
-  async function openReview(targetOverride = null) {
+  async function openReview(targetOverride = null, { sessionId: requestedSessionId = null } = {}) {
     if (REVIEW_STATE.working) return;
     REVIEW_STATE.working = true;
     const target = targetOverride || document.getElementById("choice-display");
@@ -1022,7 +1022,7 @@
       }
 
       renderProgress(target, "正在准备复盘数据…", 5);
-      let sessionId = getSessionId();
+      let sessionId = requestedSessionId || getSessionId();
       if (!sessionId) {
         const last = await api("api/game/last-session");
         sessionId = last?.session?.id || null;
@@ -1037,6 +1037,7 @@
       try {
         sessionData = await api(`api/game/session/${sessionId}`);
       } catch (e) {
+        if (requestedSessionId) throw e;
         // sessionId 可能已失效，尝试 fallback 到最近一局
         setSessionId(null);
         const last = await api("api/game/last-session");

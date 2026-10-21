@@ -18,6 +18,7 @@
         <el-button :icon="mobile || isCollapsed ? Expand : Fold" :aria-label="mobile ? '打开导航':(isCollapsed ? '展开导航':'收起导航')" text @click="mobile ? mobileNav=true:isCollapsed=!isCollapsed" />
         <div class="context-bar" style="display:flex; align-items:center; gap:12px">
           <span v-if="auth.isAccountModel" class="account-context">{{ auth.currentAccount?.organization_name }} · {{ auth.currentAccount?.name || `账号 #${auth.user?.accountId}` }}</span>
+          <el-badge v-if="activityNotices" :value="activityNotices"><el-button text @click="router.push({name:'Activities'})">新活动通知</el-button></el-badge>
           <el-tag size="small" type="info">{{ auth.user?.role==='boss' ? '平台管理员':(!auth.isAccountModel && auth.user?.role==='operator' ? '运营':'权限不足') }}</el-tag>
           <span style="font-size:14px; color:#666">{{ auth.user?.guardianName || auth.user?.username || auth.user?.phone }}</span>
           <el-button v-if="auth.user?.accountId" text @click="router.push({name:'SelectAccount'})">切换账号</el-button>
@@ -39,7 +40,8 @@
 </template>
 
 <script setup>
-import { ref, markRaw, computed, onBeforeUnmount } from 'vue'
+import { ref, markRaw, computed, onBeforeUnmount, onMounted, watch } from 'vue'
+import api from '../api'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import {ElMessage} from 'element-plus'
@@ -51,6 +53,15 @@ import {
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const activityNotices=ref(0)
+let noticeTimer
+async function refreshActivityNotices(){
+  if(!auth.isAccountModel || auth.user?.role!=='boss'){activityNotices.value=0;return}
+  try{activityNotices.value=((await api.get('/api/admin/activities/notifications')).data.notifications||[]).length}catch{/* Retry on the next refresh; the durable notice remains unread. */}
+}
+onMounted(()=>{refreshActivityNotices();noticeTimer=setInterval(refreshActivityNotices,30000)})
+watch(()=>[route.fullPath,auth.contextVersion],refreshActivityNotices)
+onBeforeUnmount(()=>clearInterval(noticeTimer))
 const isCollapsed = ref(false)
 const media=window.matchMedia('(max-width:700px)')
 const mobile=ref(media.matches),mobileNav=ref(false)

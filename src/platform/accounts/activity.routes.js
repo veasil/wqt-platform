@@ -7,7 +7,7 @@ import {domainError} from '../../game/activities/link.js';
 import {accountOperation,lockAccounts,authorizeOperation} from './service.js';
 import {generateActivityCode} from '../../game/activities/codes.js';
 import {reviewLevelApplication,setIdentityLevel} from './level-service.js';
-import {applyActivity} from './activity-service.js';
+import {applyActivity,activityConfiguration} from './activity-service.js';
 
 export function registerAccountActivityRoutes(app) {
   const boss=[authMiddleware,requireRole('boss')];
@@ -16,7 +16,7 @@ export function registerAccountActivityRoutes(app) {
     res.json({ok:true,activity_id:result.activity.id,activity_name:result.activity.name,table_no:result.activity.table_no});
   }));
   app.get('/api/activities/by-code/:code',sessionEndpoint(async(req,res)=>{
-    const activity=await dbGet('SELECT id,name,organizer,activity_code,started_at,ended_at,status FROM activities WHERE activity_code=?',[String(req.params.code).toUpperCase()]);
+    const activity=await dbGet('SELECT id,name,organizer,activity_code,started_at,ended_at,status,game_config_json FROM activities WHERE activity_code=?',[String(req.params.code).toUpperCase()]);
     if (!activity) throw domainError(404,'活动码无效');
     if (activity.status!=='active') throw domainError(410,'活动尚未开放或已结束');
     res.json({activity});
@@ -24,6 +24,19 @@ export function registerAccountActivityRoutes(app) {
   app.get('/api/admin/activities',...boss,sessionEndpoint(async(_req,res)=>{
     res.json({activities:await dbAll(`SELECT a.*,COUNT(DISTINCT link.session_id) AS table_count,COUNT(DISTINCT s.account_id) AS participant_count,ROUND(AVG(s.final_score),1) AS avg_score
       FROM activities a LEFT JOIN activity_sessions link ON link.activity_id=a.id LEFT JOIN game_sessions s ON s.id=link.session_id GROUP BY a.id ORDER BY a.created_at DESC`)});
+  }));
+  app.get('/api/admin/activities/notifications',...boss,sessionEndpoint(async(_req,res)=>{
+    const notifications=await dbAll(`SELECT n.activity_id,n.created_at,a.name,a.organizer FROM activity_creation_notifications n
+      JOIN activities a ON a.id=n.activity_id WHERE n.read_at IS NULL ORDER BY n.created_at DESC LIMIT 200`);
+    res.set('Cache-Control','no-store').json({notifications});
+  }));
+  app.post('/api/admin/activities/:id/acknowledge',...boss,sessionEndpoint(async(req,res)=>{
+    const id=Number(req.params.id);
+    res.json(await accountOperation(req.actor,req.body?.requestId,'acknowledge-activity',{id},async tx=>{
+      await lockAccounts(tx,[req.actor.accountId]);await authorizeOperation(tx,req.actor);
+      await tx.run('UPDATE activity_creation_notifications SET read_at=COALESCE(read_at,?),read_by_identity_id=COALESCE(read_by_identity_id,?) WHERE activity_id=?',[Date.now(),req.identity.id,id]);
+      return {result:{ok:true}};
+    }));
   }));
   app.post('/api/admin/activities',...boss,sessionEndpoint(async(req,res)=>{
     const {requestId,name,organizer=null,started_at=null,ended_at=null,category='general'}=req.body || {};
@@ -41,6 +54,7 @@ export function registerAccountActivityRoutes(app) {
   app.put('/api/admin/activities/:id',...boss,sessionEndpoint(async(req,res)=>{
     const id=Number(req.params.id);
     const {requestId,...fields}=req.body || {};
+    const configuration=fields.configuration==null ? null : await activityConfiguration(fields.configuration);
     if (fields.status && !['active','pending','ended','suspended','rejected'].includes(fields.status)) throw domainError(400,'活动状态无效');
     res.json(await accountOperation(req.actor,requestId,'update-activity',{id,fields},async tx=>{
       await lockAccounts(tx,[req.actor.accountId]);
@@ -48,6 +62,7 @@ export function registerAccountActivityRoutes(app) {
       const existing=await tx.get('SELECT * FROM activities WHERE id=? FOR UPDATE',[id]);
       if (!existing) throw domainError(404,'活动不存在');
       await tx.run('UPDATE activities SET name=?,organizer=?,started_at=?,ended_at=?,status=? WHERE id=?',[fields.name || existing.name,fields.organizer ?? existing.organizer,fields.started_at ?? existing.started_at,fields.ended_at ?? existing.ended_at,fields.status || existing.status,id]);
+      if(configuration)await tx.run('UPDATE activities SET game_config_json=? WHERE id=?',[JSON.stringify(configuration),id]);
       return {result:{ok:true,id}};
     }));
   }));
@@ -74,6 +89,6 @@ export function registerAccountActivityRoutes(app) {
       return {result:{ok:true,id}};
     }));
   }));
-  // Both personal entry points submit for approval; neither bypasses platform review.
+  // Both player entry points create immediately and notify the platform (2026-10-21).
   for (const path of ['/api/activities','/api/activities/apply']) app.post(path,authMiddleware,sessionEndpoint(async(req,res)=>res.json(await applyActivity(req.actor,req.body))));
 }

@@ -17,3 +17,13 @@ for (const count of [0,1,6]) test(`review with ${count} cards reaches generation
   assert.ok(!calls.includes('/api/settings'));
   assert.match(target.innerHTML,/provider unavailable in test/);
 });
+
+test('an explicitly selected report never falls back to another session',async()=>{
+  const calls=[],target={innerHTML:'',querySelector:()=>null};
+  const storage=new Map([['WQT_AUTH_TOKEN','synthetic'],['WQT_SESSION_ID','1']]);
+  const context={window:{location:{search:''}},document:{getElementById:()=>target},localStorage:{getItem:k=>storage.get(k)||null},sessionStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},console,URLSearchParams,crypto:globalThis.crypto,
+    fetch:async path=>{calls.push(path);return {ok:false,status:404,json:async()=>({error:'selected session unavailable'})}}};
+  vm.runInNewContext(await readFile(new URL('../../public/game-review.js',import.meta.url),'utf8'),context);
+  await context.window.GameReview.openReview(target,{sessionId:99});
+  assert.deepEqual(calls,['/api/game/session/99']);assert.match(target.innerHTML,/selected session unavailable/);
+});

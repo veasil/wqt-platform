@@ -17,4 +17,6 @@ npm run test:artifacts
 | [WQT-003](WQT-003-pre-release-rehearsal/spec.md) | CI 合成数据备份恢复演练（技术完成，待验收） |
 | [WQT-004](WQT-004-staging-startup-guards/spec.md) | 启动保护、完整schema合成数据与PG18验证 |
 
+| [WQT-010](WQT-010-scoring-activity-review/spec.md) | 活动预置、自动关联与行式复盘反馈 |
+
 小改动仍可使用[单文件模板](../development/change-template.md)，以相同 `WQT-编号-主题` 目录内的 `change.md` 保存目标、验收、计划、证据。检查器支持三文件及单文件两种形式；完成状态由证据与验收人决定，结构检查不代替审批。

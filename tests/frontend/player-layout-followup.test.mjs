@@ -19,10 +19,10 @@ async function harness(t,width){
  const errors=[];page.on('pageerror',e=>errors.push(e.message));t.after(()=>assert.deepEqual(errors,[]));
  await page.route('http://localhost/**',async route=>{
   const url=new URL(route.request().url());
-  if(url.pathname==='/shared/browser/sms-cooldown.js')return route.fulfill({contentType:'text/javascript',body:await readFile(resolve('shared/browser/sms-cooldown.js'))});
+  if(url.pathname.startsWith('/shared/browser/'))return route.fulfill({contentType:'text/javascript',body:await readFile(resolve('.'+url.pathname))});
   if(url.pathname.startsWith('/api/')){
    const pending=[{id:101,location:'青禾学校 · 现场活动反馈',ended_at:Date.now(),questionnaire:{questions:Array.from({length:12},(_,i)=>({id:'q'+i,type:'text',label:'请记录现场讨论、参与情况与改进建议 '+(i+1)}))}}];
-   return route.fulfill({contentType:'application/json',body:JSON.stringify(url.pathname==='/api/player/feedback'?{pending}:{})});
+   return route.fulfill({contentType:'application/json',body:JSON.stringify(url.pathname==='/api/player/feedback'?{pending}:url.pathname==='/api/me/sessions'?{sessions:[{id:101,activity_name:'青禾学校活动',location:'青禾学校',started_at:Date.now(),ended_at:Date.now(),player_state_json:'{}'}]}:{})});
   }
   try{const path=resolve(publicRoot,'.'+url.pathname);if(!path.startsWith(publicRoot))return route.abort();let body=await readFile(path);
    if(url.pathname==='/player/player.js')body=body.toString().replace(/safe\(resumeLogin\);\s*$/,fixture);
@@ -50,18 +50,11 @@ for(const width of [1365,1920,390])for(const theme of ['dark','light'])test(`ali
  assert.ok(await right.locator('.operation-timeline').evaluate(e=>e.scrollHeight>e.clientHeight),'long operation history scrolls');
  await screenshot('watch');
  await page.evaluate(()=>fixture.me('feedback'));await page.waitForSelector('#account-content[data-ready=true]');
- const frameGeometry=()=>page.evaluate(()=>{const frame=document.querySelector('#account-content').getBoundingClientRect();return {height:frame.height,footer:document.querySelector('.site-footer').getBoundingClientRect().top+scrollY}});
- const feedbackBefore=await frameGeometry();
- const survey=page.locator('.session-survey:not([hidden])');assert.ok(await survey.evaluate(e=>e.scrollHeight>e.clientHeight),'long questionnaire scrolls');
- await survey.evaluate(e=>e.scrollTop=e.scrollHeight);await page.getByRole('button',{name:'提交反馈并关闭本场'}).scrollIntoViewIfNeeded();
- await page.locator('.feedback-other summary').click();const other=page.locator('#general-feedback');
- assert.deepEqual(await frameGeometry(),feedbackBefore,'expanding other feedback leaves outer frame height and footer position unchanged');
- await other.locator('textarea').fill('详细反馈内容'.repeat(100));
- await screenshot('feedback-expanded');
- await other.locator('textarea').evaluate(e=>e.style.height='900px');
- assert.deepEqual(await frameGeometry(),feedbackBefore,'resizing feedback content does not move the outer frame or footer');
- assert.ok(await other.evaluate(e=>e.scrollHeight>e.clientHeight),'expanded opinion form has internal scroll');
- await other.evaluate(e=>e.scrollTop=e.scrollHeight);await page.getByRole('button',{name:'提交意见',exact:true}).scrollIntoViewIfNeeded();
+ await page.locator('[data-session-feedback="101"]').click();await page.waitForSelector('#session-feedback-form');
+ const feedbackDialog=page.locator('.session-feedback-dialog');
+ assert.ok((await feedbackDialog.boundingBox()).height<=1000*.91,'long questionnaire stays in a contained dialog');
+ await feedbackDialog.evaluate(e=>e.scrollTop=e.scrollHeight);await feedbackDialog.getByRole('button',{name:'提交反馈',exact:true}).scrollIntoViewIfNeeded();
+ await screenshot('feedback-dialog');await page.locator('#dialog-close').click();
  await screenshot('feedback');
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no horizontal page overflow');
 });

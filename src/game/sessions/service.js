@@ -4,7 +4,7 @@ import {
   accessibleSession,
   currentActor,
 } from "../../platform/access/session-scope.js";
-import { domainError, linkActivity } from "../activities/link.js";
+import { domainError, linkActivity, linkAutomaticActivity } from "../activities/link.js";
 import { gameTransaction } from './operation.js';
 
 import {initialState} from "../player/state.js";
@@ -16,14 +16,15 @@ export async function startSession(userId, input, {playerEntry=false}={}) {
     const actor = await currentActor(userId, tx.get, { lock: true });
     if (!actor) throw domainError(401, "账号不存在");
     if (actor.identity_id != null) {
-      if (!actor.paid_valid && !(actor.trial_valid && input.activityCode))
+      if (!actor.paid_valid && !(actor.trial_valid && (playerEntry || input.activityCode)))
         throw domainError(403, "开局需要有效付费权益，或有效体验与活动码");
       const result = await tx.run(`INSERT INTO game_sessions(account_id, created_by_identity_id, started_at, location, players_json, game_mode, game_settings_json, card_group_id, organization_id, ownership_kind)
         VALUES(?,?,?,?,?,?,?,?,?,'organization')`, [actor.id, actor.identity_id, Number(input.ts || Date.now()), input.location || null,
         input.players ? JSON.stringify(input.players) : null, input.mode || null,
         input.settings ? JSON.stringify(input.settings) : null, input.cardGroupId ? Number(input.cardGroupId) : null, actor.organization_id]);
-      const session = { id: result.lastID, organization_id: actor.organization_id, ownership_kind: 'organization' };
-      const activity = input.activityCode ? await linkActivity(tx, session, input.activityCode) : null;
+      const session = { id: result.lastID, account_id: actor.id, organization_id: actor.organization_id, ownership_kind: 'organization' };
+      const activity = input.activityCode ? await linkActivity(tx, session, input.activityCode)
+        : playerEntry ? await linkAutomaticActivity(tx, session, actor, input.location) : null;
       if(input.settings?.player){const state=initialState(input.settings);await tx.run('UPDATE game_sessions SET player_state_json=? WHERE id=?',[JSON.stringify(state),session.id]);await tx.run('INSERT INTO game_events(session_id,ts,type,payload) VALUES(?,?,?,?)',[session.id,Date.now(),'game_start',JSON.stringify({settings:input.settings,location:input.location,cardGroup:input.cardGroupId})]);}
       return { ok: true, sessionId: session.id, activity };
     }

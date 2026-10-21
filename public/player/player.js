@@ -1,4 +1,7 @@
 import { request } from "./api.js";
+import {configurationFields,bindConfiguration,readConfiguration} from './components/game-configuration.js';
+import {sessionRow} from './components/session-row.js';
+import {sessionSummaryMarkup,surveyFields} from './components/session-summary.js';
 import { createSmsCooldown } from "/shared/browser/sms-cooldown.js";
 let disposeSmsCooldown = () => {};
 import { attachFrame } from "./refined-frame.js";
@@ -163,7 +166,7 @@ function syncIdentity() {
     `<button id="identity-menu" class="identity-button">${esc(name)}</button>${state && !state.ended ? `<button id="record-button" class="button">${recorder?.state === "recording" ? "● 录音中" : "录音未开启"}</button>` : ""}${visibleAudio ? `<button id="pending-audio" class="button">待保存录音 · 场次 ${esc(audioContext.sessionId)}</button>` : ""}${user && account && sessionStorage.getItem(operationKey()) ? '<button id="retry-operation" class="button">重试未确认操作</button>' : ""}${pending.length ? `<button id="pending-feedback" class="feedback-pending">反馈 ${pending.length}</button>` : ""}`;
   const meNav = $("#nav-me");
   meNav.classList.toggle("has-pending-feedback", pending.length > 0);
-  meNav.setAttribute("aria-label", pending.length ? `我的，${pending.length} 场待完成反馈` : "我的");
+  meNav.setAttribute("aria-label", pending.length ? `个人主页，${pending.length} 场待完成反馈` : "个人主页");
   bind("identity-menu", () => (user ? me() : login()));
   bind("record-button", recordPanel);
   bind("pending-audio", recordPanel);
@@ -186,7 +189,7 @@ themeToggle.onclick=()=>{document.documentElement.dataset.theme=document.documen
 new MutationObserver(syncThemeToggle).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});syncThemeToggle();
 const headerElement=document.querySelector('header');const syncHeaderHeight=()=>document.documentElement.style.setProperty('--player-header-height',headerElement.getBoundingClientRect().height+'px');new ResizeObserver(syncHeaderHeight).observe(headerElement);syncHeaderHeight();
 $(".nav").innerHTML =
-  '<button data-nav="game" id="nav-game">桌游模式</button><button data-nav="watch" id="nav-watch">监督模式</button><button data-nav="me" id="nav-me">我的</button><button data-nav="downloads" id="nav-downloads">↓ 下载中心</button>';
+  '<button data-nav="game" id="nav-game">桌游模式</button><button data-nav="watch" id="nav-watch">监督模式</button><button data-nav="me" id="nav-me">个人主页</button><button data-nav="downloads" id="nav-downloads">↓ 下载中心</button>';
 bind("nav-game", () => (state ? game() : activities()));
 bind("nav-watch", watch);
 bind("nav-me", me);
@@ -331,7 +334,7 @@ async function chooseAccount({modal=false,manual=false}={}){
   if(accounts.length===1 && ['watcher','enterprise','boss'].includes(accounts[0].role)){await selectPlayerAccount(accounts[0].id);return}
   if(paidWatchers.length===1){await selectPlayerAccount(paidWatchers[0].id);return}
   if(paidWatchers.length>1){
-   show('accounts',surface('选择当前活动',`<p class="flow-lead">输入活动码，自动使用该活动所属组织的账号。</p><form id="activity-account-form" class="flow-form"><label>活动码<input name="code" required autocomplete="off" placeholder="请输入现场活动码"></label><button class="button primary">查找活动并进入</button></form><p id="page-error" role="alert"></p>${button('手动选择账号','manual-account')}`));
+   show('accounts',surface('选择当前活动',`<p class="flow-lead">选择本次使用的账号，或展开活动码匹配。</p><details><summary>使用活动码匹配账号</summary><form id="activity-account-form" class="flow-form"><label>活动码<input name="code" required autocomplete="off" placeholder="请输入现场活动码"></label><button class="button primary">查找活动并进入</button></form></details><p id="page-error" role="alert"></p>${button('手动选择账号','manual-account')}`));
    bind('manual-account',()=>chooseAccount({manual:true}));
    $('#activity-account-form').onsubmit=e=>{
     e.preventDefault();safe(async()=>{
@@ -421,84 +424,40 @@ async function loadCards(groupId) {
   cards=(await request(session?.id ? '/api/player/cards/'+session.id : '/api/cards'+(groupId?'?group_id='+groupId:''))).cards;
 }
 function activities(result = null) {
-  if (state && !state.ended) {
-    game();
-    return;
-  }
-  show(
-    "activities",
-    surface(
-      "选择当前活动",
-      `<p class="flow-lead">输入活动码，查找后选择现场活动。</p><form id="code-form" class="picker-toolbar"><label>活动码<input name="code" value="${esc(loginActivityCode)}" required placeholder="请输入现场活动码"></label><button class="button primary">查找</button></form><p id="page-error" role="alert"></p>${result ? `<div class="activity-grid"><button class="activity-card" id="select-activity"><span class="tag">可开始</span><h2>${esc(result.name)}</h2><p>${esc(result.organizer)}</p><strong>${esc(result.activity_code)}</strong><span>点击选择 →</span></button></div>` : '<div class="activity-search-empty"><span>⌕</span><h2>用活动码找到现场活动</h2></div>'}`,
-    ),
-  );
-  $("#code-form").onsubmit = (e) => {
-    e.preventDefault();
-    safe(async () => {
-      const code = e.target.elements.code.value.trim();
-      const data = await request(
-        "/api/activities/by-code/" + encodeURIComponent(code),
-      );
-      activities(data.activity);
-    });
-  };
-  bind("select-activity", () => {
-    activity = result;
-    configure();
-  });
+  if (state && !state.ended) { game(); return; }
+  show('activities',surface('选择当前活动',`
+    <form id="code-form" class="picker-toolbar"><label>活动码<input name="code" value="${esc(loginActivityCode)}" required placeholder="请输入现场活动码"></label><button class="button primary">查找</button></form>
+    <p id="page-error" role="alert"></p>
+    ${result ? `<div class="activity-grid"><button class="activity-card" id="select-activity"><span class="tag">可开始</span><h2>${esc(result.name)}</h2><p>${esc(result.organizer)}</p><span>点击选择 →</span></button></div>` : '<div class="activity-search-empty"><span>⌕</span><h2>选择本次活动</h2></div>'}
+    <button class="button activity-skip" id="skip-activity">跳过活动码，自行配置</button>`));
+  $('#code-form').onsubmit=e=>{e.preventDefault();safe(async()=>{
+    const data=await request('/api/activities/by-code/'+encodeURIComponent(e.target.elements.code.value.trim()));activities(data.activity);
+  })};
+  bind('skip-activity',()=>{activity=null;configure()});bind('select-activity',()=>{activity=result;configure()});
+}
+function configurationContext(configuration={}) {
+  const modes=JSON.parse(settings.GAME_MODES||'[]');
+  return {configuration:{...(!modes.length?{duration:Number(settings.DEFAULT_GAME_TIME)||5000}:{}),...configuration},groups,modes,escapeHtml:esc};
 }
 function configure() {
-  const modes = JSON.parse(settings.GAME_MODES || "[]"),
-    mode = modes[0] || {
-      distribution: {},
-      time: Number(settings.DEFAULT_GAME_TIME) || 5000,
-    };
-  show(
-    "configure",
-    surface(
-      "查看活动配置",
-      `<div class="config-heading"><h2>${esc(activity.name)}</h2><span class="tag">${esc(activity.activity_code)}</span></div><form id="config-form"><div class="form-grid">${formField("location", "活动地点", activity.location || activity.organizer, "required")}${formField("players", "参与者（可选，以逗号分隔）", "", 'maxlength="400"')}${formField("duration", "倒计时（秒）", mode.time, 'type="number" min="1" max="10800" required')}<label>游戏模式<select name="mode">${modes.map(m=>`<option value="${esc(m.id)}">${esc(m.name)}</option>`).join("")}</select></label><label>卡牌组<select name="group">${groups.map((g) => `<option value="${g.id}" ${g.is_default ? "selected" : ""}>${esc(g.name)}</option>`).join("")}</select></label>${phases.map((n, i) => formField("count" + i, n + "卡牌数", mode.distribution?.[n] ?? 3, 'type="number" min="0" max="15" required')).join("")}</div>${note("数量为0的阶段自动跳过；卡牌进入游戏后选择。")}<p id="page-error" role="alert"></p><div class="toolbar">${button("上一步", "back-activities")}<button class="button primary">开启新游戏　↗</button></div></form>`,
-    ),
-  );
-  bind("back-activities", () => activities(activity));
-  $('#config-form').elements.mode.onchange=e=>{const selected=modes.find(m=>m.id===e.target.value);if(selected){$('#config-form').elements.duration.value=selected.time;phases.forEach((n,i)=>$('#config-form').elements['count'+i].value=selected.distribution?.[n]??3)}};
-  $("#config-form").onsubmit = (e) => {
-    e.preventDefault();
-    safe(async () => {
-      await refreshPending();
-      if (
-        pending.length &&
-        !window.confirm("上一场反馈尚未完成。确定暂时跳过并开始下一场？")
-      ) {
-        await me("feedback");
-        return;
-      }
-      const f = new FormData(e.target),
-        data = await write("/api/player/start", {
-          activityCode: activity.activity_code,
-          location: f.get("location"),
-          players: String(f.get("players") || "")
-            .split(/[,，]/)
-            .map((n) => n.trim())
-            .filter(Boolean),
-          cardGroupId: Number(f.get("group")) || null,
-          mode: f.get("mode") || "standard",
-          settings: {
-            duration: Number(f.get("duration")),
-            counts: [0, 1, 2].map((i) => Number(f.get("count" + i))),
-          },
-        });
-      session = { id: data.sessionId };
-      const saved = await request("/api/player/session/" + session.id);
-      autoEnding=false;
-      session = saved.session;
-      state = saved.state;
-      events = saved.events;
-      card = null;
-      await loadCards(session.card_group_id);
-      game();
-    });
-  };
+  const configuration=activity?.game_config_json?JSON.parse(activity.game_config_json):{};
+  const context=configurationContext(configuration);
+  show('configure',surface('配置本次游戏',`<div class="config-heading"><h2>${esc(activity?.name||'自主配置')}</h2></div>
+    <form id="config-form">${formField('location','活动地点',activity?.location||activity?.organizer||'','required maxlength="200"')}
+    ${configurationFields(context)}<p id="page-error" role="alert"></p><div class="toolbar">${button('上一步','back-activities')}<button class="button primary">开启新游戏　↗</button></div></form>`));
+  bind('back-activities',()=>activities(activity));
+  const form=$('#config-form');bindConfiguration(form,context.modes);
+  form.onsubmit=e=>{e.preventDefault();safe(async()=>{
+    const configuration=readConfiguration(form);
+    await refreshPending();
+    if(pending.length&&!window.confirm('上一场反馈尚未完成。确定暂时跳过并开始下一场？')){await me('feedback');return}
+    const data=await write('/api/player/start',{activityCode:activity?.activity_code||undefined,location:form.elements.location.value,
+      cardGroupId:configuration.cardGroupId,mode:configuration.mode,
+      settings:{duration:configuration.duration,counts:configuration.counts,ageRange:configuration.ageRange}});
+    const saved=await request('/api/player/session/'+data.sessionId);autoEnding=false;
+    session=saved.session;state=saved.state;events=saved.events;scoreOverview=saved.scoreOverview;card=null;
+    await loadCards(session.card_group_id);game();
+  })};
 }
 function operationKey() {
   return `WQT_PLAYER_PENDING:${user.identityId}:${account.id}`;
@@ -835,7 +794,7 @@ function recordPanel() {
       if (!response.ok)
         throw new Error((await response.json()).error || "上传失败");
       await clearAudioDraft(context, persisted);
-      status.textContent = "录音已保存，可在报告与录音中查看";
+      status.textContent = "录音已保存";
       syncIdentity();
     } catch (e) {
       status.textContent =
@@ -909,8 +868,8 @@ function watch() {
   };
 
 }
-function radarMarkup(attrs){
- const details=scoreOverview?.scoreDetails||{};
+function radarMarkup(attrs,overview=scoreOverview){
+ const details=overview?.scoreDetails||{};
  const rates=names.map((n,i)=>{const max=Number(details[n]?.max||0);return max>0?Math.max(0,Math.min(1,attrs[i]/max))*10:0});
  const score=Math.round(rates.reduce((sum,value)=>sum+value,0)/names.length*10);
  return `<div class="radar-overview"><svg class="radar" viewBox="0 0 360 330" role="img" aria-label="理想分值与实际得分率雷达">${[2,4,6,8,10].map(v=>`<polygon class="web" points="${polygon(names.map(()=>v))}"/>`).join('')}<polygon class="theory" points="${polygon(names.map(()=>10))}"/><polygon class="actual" points="${polygon(rates)}"/>${names.map((n,i)=>{const a=-Math.PI/2+i*2*Math.PI/5;return `<text x="${180+Math.cos(a)*143}" y="${163+Math.sin(a)*143}" text-anchor="middle">${n}</text>`}).join('')}</svg><div class="radar-total" aria-live="polite"><span>伍力总分</span><strong>${score}<small>分</small></strong></div></div><div class="legend"><span><i class="dashed"></i>理想分值</span><span><i></i>实际得分</span></div>`;
@@ -962,7 +921,7 @@ async function entitlements(){
  show('me',surface('权益与体验',loadingPanel()));
  const current=generation,data=await request('/api/me/entitlements');if(generation!==current)return;
  const trial=data.experience,labels={active:'体验中',pending_activation:'待激活',expired:'体验已结束',not_granted:'未开通体验'};
- root.innerHTML=surface('权益与体验',`<div class="entitlement-grid"><section class="surface"><span class="list-kicker">当前组织账号</span><h2>${esc(data.account.name)}</h2><span class="status-pill ${data.account.paidValid?'live':''}">${data.account.paidValid?'付费权益有效':data.account.validUntil?'付费权益已到期':'免费账号'}</span><p>${data.account.validUntil?'权益期限至 '+new Date(Number(data.account.validUntil)).toLocaleString():'当前账号尚未开通付费权益。'}</p></section><section class="surface"><span class="list-kicker">本人体验权益</span><h2>${labels[trial.status]}</h2><p>${trial.active?'有效期至 '+new Date(Number(trial.until)).toLocaleString():trial.pending?'平台已开通，激活后连续30天。':'体验须由平台管理端开通，用户激活后开始计时。'}</p>${trial.canActivate?button('激活30天体验','activate-trial',true):''}${trial.active?note('体验期间，凭有效活动码开启游戏。'):''}</section></div><h2 class="capability-heading">当前可以使用</h2><div class="capability-list">${[['凭活动码开启游戏',data.capabilities.startGame],['资料下载',data.capabilities.downloads],['AI选项反馈',data.capabilities.aiFeedback]].map(([name,enabled])=>`<div><span>${name}</span><strong class="${enabled?'available':''}">${enabled?'可使用':'需有效权益'}</strong></div>`).join('')}</div><p class="scope-note">学习网站权益由学习平台单独管理，不在这里推断课程授权。</p><div class="toolbar">${button('返回个人信息','back-profile')}</div><p id="page-error" role="alert"></p>`);
+ root.innerHTML=surface('权益与体验',`<div class="entitlement-grid"><section class="surface"><span class="list-kicker">当前组织账号</span><h2>${esc(data.account.name)}</h2><span class="status-pill ${data.account.paidValid?'live':''}">${data.account.paidValid?'付费权益有效':data.account.validUntil?'付费权益已到期':'免费账号'}</span><p>${data.account.validUntil?'权益期限至 '+new Date(Number(data.account.validUntil)).toLocaleString():'当前账号尚未开通付费权益。'}</p></section><section class="surface"><span class="list-kicker">本人体验权益</span><h2>${labels[trial.status]}</h2><p>${trial.active?'有效期至 '+new Date(Number(trial.until)).toLocaleString():trial.pending?'平台已开通，激活后连续30天。':'体验须由平台管理端开通，用户激活后开始计时。'}</p>${trial.canActivate?button('激活30天体验','activate-trial',true):''}${trial.active?note('有效体验期间可跳过活动码，配置后开始游戏。'):''}</section></div><h2 class="capability-heading">当前可以使用</h2><div class="capability-list">${[['开启游戏',data.capabilities.startGame],['资料下载',data.capabilities.downloads],['AI选项反馈',data.capabilities.aiFeedback]].map(([name,enabled])=>`<div><span>${name}</span><strong class="${enabled?'available':''}">${enabled?'可使用':'需有效权益'}</strong></div>`).join('')}</div><p class="scope-note">学习网站权益由学习平台单独管理，不在这里推断课程授权。</p><div class="toolbar">${button('返回个人信息','back-profile')}</div><p id="page-error" role="alert"></p>`);
  bind('back-profile',()=>me());bind('activate-trial',async()=>{const b=$('#activate-trial');b.disabled=true;try{await write('/api/me/trial/activate',{});await entitlements()}catch(e){b.disabled=false;throw e}});
 }
 async function studyMaterials(){
@@ -972,21 +931,72 @@ async function studyMaterials(){
 }
 async function applyActivityForm(){
  const current=await request('/api/me');
- if(!current.user.validityValid){dialog('申请活动',note('当前账号无有效权益，暂不能申请活动。你仍可按账号权益使用活动码参与已有活动。'));return}
- dialog('申请活动',`<p>提交后由平台审核，通过后即可使用活动码开展活动。</p><form id="activity-apply-form">${formField('name','活动名称','','required maxlength="120"')}${formField('location','活动地点','','maxlength="200"')}<button class="button primary" type="submit">提交申请</button></form>`);
- const form=$('#activity-apply-form');
+ if(!current.user.validityValid){dialog('创建活动',note('当前账号无有效正式权益，暂不能创建活动。'));return}
+ const context=configurationContext();
+ const now=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
+ dialog('创建活动',`<form id="activity-apply-form"><div class="form-grid">${formField('name','活动名称','','required maxlength="120"')}${formField('location','活动地点','','required maxlength="200"')}${formField('startedAt','活动时间',now,'type="datetime-local" required')}</div>
+   ${configurationFields(context)}<div class="toolbar"><button class="button primary" type="submit">创建活动并获取活动码</button></div></form>`);
+ activeDialog.classList.add('activity-config-dialog');
+ const form=$('#activity-apply-form');bindConfiguration(form,context.modes);
  form.onsubmit=e=>{e.preventDefault();safe(async()=>{
-  const submit=form.querySelector('[type=submit]');submit.disabled=true;
-  try{await write('/api/activities/apply',Object.fromEntries(new FormData(form)));closeDialog();await createdActivities()}
-  finally{submit.disabled=false}
+  const configuration=readConfiguration(form),submit=form.querySelector('[type=submit]');submit.disabled=true;
+  try{
+   const result=await write('/api/activities/apply',{name:form.elements.name.value,location:form.elements.location.value,started_at:new Date(form.elements.startedAt.value).getTime(),configuration});
+   const created=(await request('/api/activities/by-code/'+encodeURIComponent(result.activity_code))).activity;
+   dialog('活动已创建',`<h3>${esc(created.name)}</h3><p class="activity-code-result-label">活动码</p><output class="activity-code-result">${esc(result.activity_code)}</output><div class="toolbar">${button('复制活动码','copy-created-code')}${button('开始本次活动','start-created-activity',true)}</div>`);
+   bind('copy-created-code',async()=>{await navigator.clipboard.writeText(result.activity_code);$('#copy-created-code').textContent='已复制'});
+   bind('start-created-activity',()=>{activity=created;closeDialog();configure()});
+  }finally{submit.disabled=false}
  })};
 }
 async function createdActivities(){
- const data=await request('/api/me/activities/created');dialog('我创建的活动',data.activities.length?`<div class="content-list">${data.activities.map(a=>`<article class="list-row"><div><h3>${esc(a.name)}</h3><p>${a.status==='pending'||a.status==='pending_approval'?'待审核':a.status==='active'?'已开放':a.status==='rejected'?'已驳回':'已结束'} · 活动码 ${esc(a.activity_code)}</p></div><button class="button" data-activity-detail="${esc(a.activity_code)}" ${a.status!=='active'?'disabled':''}>查看活动成绩</button></article>`).join('')}</div>`:emptyPanel('还没有创建的活动','提交的活动申请和审核状态会在这里显示。'));
+ const data=await request('/api/me/activities/created');dialog('我创建的活动',data.activities.length?`<div class="content-list">${data.activities.map(a=>`<article class="list-row"><div><h3>${esc(a.name)}</h3>${a.status==='active'?`<details><summary>查看活动码</summary><p>${esc(a.activity_code)}</p></details>`:''}<p>${a.status==='pending'||a.status==='pending_approval'?'待审核':a.status==='active'?'已开放':a.status==='rejected'?'已驳回':'已结束'}</p></div><button class="button" data-activity-detail="${esc(a.activity_code)}" ${a.status!=='active'?'disabled':''}>查看活动成绩</button></article>`).join('')}</div>`:emptyPanel('还没有创建的活动','提交的活动申请和审核状态会在这里显示。'));
  activeDialog.querySelectorAll('[data-activity-detail]').forEach(b=>b.onclick=()=>safe(async()=>{const result=await request('/api/activities/by-code/'+encodeURIComponent(b.dataset.activityDetail)+'?withSessions=1');dialog('活动成绩',`<h3>${esc(result.activity.name)}</h3>${(result.sessions||[]).map(row=>`<p>${esc(row.location||'场次 '+row.id)} · ${row.final_score==null?'未结算':row.final_score+'分'}</p>`).join('')||note('暂无已结算场次。')}`)}));
 }
 async function legacySession(id){
  const data=await request('/api/game/session/'+id);dialog('活动记录',`<h3>${esc(data.session.location||'场次 '+id)}</h3><p>${new Date(Number(data.session.started_at)).toLocaleString()} · ${data.session.ended_at?'已结算':'进行中'}</p><p>结算分数：${data.session.final_score??'未结算'}</p><div class="operation-timeline">${data.events.map(e=>{let payload={};try{payload=JSON.parse(e.payload)}catch{}return `<article><div><small>${new Date(Number(e.ts)).toLocaleTimeString()}</small><strong>${esc(payload.cardCode||payload.skill||'场次记录')}</strong><p>${esc(payload.consequence||payload.reason||payload.text||'')}</p></div></article>`}).join('')}</div>`);activeDialog.classList.add('skill-feedback-window');
+}
+async function sessionSummary(id){
+ let data;
+ try{data=await request('/api/player/session/'+id)}catch(error){
+  if(error.status!==409)throw error;
+  data=await request('/api/game/session/'+id);data.state=null;
+ }
+ dialog('查看本局',sessionSummaryMarkup(data,{escapeHtml:esc,radarMarkup,abilities:names}));
+ activeDialog.classList.add('session-summary-dialog');
+}
+async function sessionFeedback(id){
+ const feedback=await request('/api/me/feedback'),submitted=(feedback.surveys||[]).find(f=>Number(f.session_id)===id);
+ if(submitted){
+  dialog('查看反馈',`<p>${esc(submitted.location||'本场活动')} · ${esc(new Date(Number(submitted.created_at)).toLocaleString())}</p>${surveyFields(JSON.parse(submitted.questionnaire_json),JSON.parse(submitted.answers_json),esc,{readOnly:true})}`);
+  activeDialog.classList.add('session-feedback-dialog');return;
+ }
+ const data=await request('/api/player/feedback'),item=(data.pending||[]).find(s=>Number(s.id)===id);
+ if(!item)throw new Error('本场暂无可提交的反馈，请刷新场次列表。');
+ dialog('提交反馈',`<h3>${esc(item.location||'本场活动')}</h3><form id="session-feedback-form" class="flow-form">${surveyFields(item.questionnaire,{},esc)}<button class="button primary">提交反馈</button></form>`);
+ activeDialog.classList.add('session-feedback-dialog');
+ $('#session-feedback-form').onsubmit=e=>{e.preventDefault();safe(async()=>{
+  const submit=e.target.querySelector('button');submit.disabled=true;
+  try{await write('/api/player/feedback',{sessionId:id,answers:Object.fromEntries(new FormData(e.target))});closeDialog();await refreshPending();await me('feedback')}
+  finally{submit.disabled=false}
+ })};
+}
+async function sessionDocument(id){
+ const data=await request('/api/me/files');
+ const reports=(data.files||[]).filter(f=>Number(f.sessionId)===id && (f.type==='report_html'||f.type==='report_md'));
+ dialog('复盘文档',`<div id="session-document-content">${reports.length?reports.map((f,i)=>`<div class="list-row"><h3>${esc(f.name||'复盘文档')}</h3><button class="button" data-report-download="${i}">下载文档</button></div>`).join(''):'<p class="section-caption">本局尚未保存复盘文档。</p>'}</div><div class="toolbar">${button(reports.length?'重新生成复盘文档':'生成复盘文档','generate-session-document',true)}</div>`);
+ activeDialog.classList.add('session-summary-dialog');
+ activeDialog.querySelectorAll('[data-report-download]').forEach(b=>b.onclick=()=>safe(async()=>{
+  const file=reports[Number(b.dataset.reportDownload)],response=await fetch(file.url,{headers:{Authorization:'Bearer '+localStorage.getItem('WQT_AUTH_TOKEN')}});
+  if(!response.ok)throw new Error('文档暂不可下载');downloadBlob(await response.blob(),file.name||'复盘文档');
+ }));
+ bind('generate-session-document',async()=>{
+  if(!window.GameReview)throw new Error('复盘模块尚未加载，请刷新后重试');
+  await request('/api/game/session/'+id);
+  sessionStorage.setItem('WQT_SESSION_ID',String(id));sessionStorage.setItem('WQT_GAME_AUTH_TOKEN',localStorage.getItem('WQT_AUTH_TOKEN'));
+  $('#generate-session-document').disabled=true;
+  try{await window.GameReview.openReview($('#session-document-content'),{sessionId:id})}finally{if($('#generate-session-document'))$('#generate-session-document').disabled=false}
+ });
 }
 async function downloads() {
   show(
@@ -1035,19 +1045,19 @@ function downloadBlob(blob, name) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 async function me(tab = "profile") {
+  const inReview=['history','files','feedback','submitted'].includes(tab);
+  if(inReview)tab='feedback';
   show(
     "me",
     `<nav class="account-tabs">${[
       ["profile", "个人信息"],
       ["study", "守望学习"],
-      ["activities", "活动"],
-      ["history", "活动记录"],
-      ["files", "报告与录音"],
-      ["feedback", "反馈"],
+      ["activities", "发起活动"],
+      ["feedback", "复盘反馈"],
     ]
       .map(
         ([id, title]) =>
-          `<button data-tab="${id}" class="${tab === id ? "active" : ""}">${title}</button>`,
+          `<button data-tab="${id}" class="${(tab === id || (id === "feedback" && inReview)) ? "active" : ""}">${title}</button>`,
       )
       .join(
         "",
@@ -1066,40 +1076,28 @@ async function me(tab = "profile") {
   if (tab === "profile") {
     user=(await request("/api/me")).user;localStorage.setItem("WQT_USER_CACHE",JSON.stringify(user));
     html=`<div class="profile-grid"><div><section class="surface"><div class="avatar" aria-hidden="true">伍</div><h2 class="profile-name">${esc(user.guardianName||'守望者')}</h2><p class="profile-caption">${esc(account.name)}</p><dl class="facts"><div><dt>真实姓名</dt><dd>${esc(user.realName||'未填写')}</dd></div><div><dt>组织</dt><dd>${esc(account.organization_name||'—')}</dd></div></dl><div class="toolbar">${button('切换账号','switch-account')}${button('退出登录','logout')}</div></section><section class="surface"><h2>账号权益</h2><p>${user.validityValid?'当前账号权益有效':'当前账号无有效付费权益'}</p><p class="profile-caption">${account.valid_until?'有效期至 '+new Date(Number(account.valid_until)).toLocaleDateString():'有效期以当前账号授权为准'}</p><div class="toolbar">${button('等级申请','level-application')}${button('权益与体验','entitlements')}</div></section></div><div><section class="surface"><h2>修改信息</h2><form id="profile-form"><div class="form-grid">${formField('realName','真实姓名',user.realName,'maxlength="40"')}${formField('guardianName','守望者名',user.guardianName,'required maxlength="40"')}</div><div class="toolbar"><button class="button primary">保存资料</button></div></form></section><section class="surface"><h2>账号安全</h2><p class="profile-caption">登录密码属于本人身份，切换组织账号无需分别设置密码。</p>${button('修改密码','change-password')}${button('当前登录会话','login-session')}</section><section class="surface"><h2>资料下载</h2>${button('↓ 下载中心','profile-downloads')}</section></div></div>`;
-  }else if(tab==='history'){
- const data=await request('/api/me/sessions');html='<h1>活动记录</h1><p class="section-caption">回看带领过的场次与结算记录。</p><div class="content-list">'+(data.sessions.map((item,i)=>`<article class="list-row"><span class="list-icon" aria-hidden="true">${String(i+1).padStart(2,'0')}</span><div><h3>${esc(item.location||'场次 '+item.id)}</h3><p>${new Date(Number(item.started_at)).toLocaleString()} <span class="status-pill ${item.ended_at?'':'live'}">${item.ended_at?'已结算':'进行中'}</span></p></div>${item.player_state_json?`<button class="button" data-session="${item.id}">查看本局　↗</button>`:`<button class="button" data-legacy-session="${item.id}">查看记录　↗</button>`}</article>`).join('')||emptyPanel('还没有活动记录','完成一场游戏后，可以在这里回看。'))+'</div>';
- }else if(tab==='files'){
- const data=await request('/api/me/files');html='<h1>报告与录音</h1><p class="section-caption">保存下来的复盘报告和现场录音。</p><div class="content-list">'+(data.files.map(f=>`<article class="list-row"><span class="list-icon media-icon" aria-hidden="true">${f.type==='audio'?'♪':'▤'}</span><div><span class="list-kicker">${f.type==='audio'?'现场录音':f.type==='report_html'?'复盘报告':'场次资料'}</span><h3>${esc(f.filename||f.name||'场次文件')}</h3></div><button class="button" data-file="${esc(String(f.url||'').split('/').pop())}" data-filename="${esc(f.filename||f.name||'场次文件')}">下载　↓</button></article>`).join('')||emptyPanel('还没有保存的文件','录音或复盘报告保存后，会显示在这里。','▤'))+'</div>';
   } else if(tab==='study'){
     html=`<section class="surface learning-entry"><div><h1>守望者学习网站</h1><p>继续课程与进阶学习。</p></div><a class="button primary learning-link" href="https://learning.ai5000days.com" target="_blank" rel="noopener noreferrer">前往学习网站　↗</a></section><div class="learning-grid">${['学习权益','学习进度','进阶测试','守望者数据统计'].map(n=>`<section class="surface"><h2>${n}</h2><strong class="not-connected">待接入</strong></section>`).join('')}</div><details class="legacy-study"><summary>卡牌预习资料</summary><button class="button" id="study-materials" ${user.validityValid?"":"disabled"}>${user.validityValid?"查看卡牌资料":"有效付费权益可查看"}</button></details>`;
   } else if (tab === "activities") {
-    const data = await request("/api/me/activities");
+    const data = await request("/api/me/activities/created");
     html =
-      '<h1>活动</h1><p class="section-caption">参与的活动与带领记录。</p><div class="toolbar"><button class="button" id="create-activity">活动创建 / 申请</button><button class="button" id="created-activities">我创建的活动</button></div>' +
+      '<h1>发起活动</h1><div class="toolbar"><button class="button" id="create-activity">创建活动</button><button class="button" id="created-activities">我创建的活动</button></div>' +
       (data.activities.length ? data.activities
         .map(
           (a) =>
-            `<article class="surface"><h3>${esc(a.name)}</h3><p>${esc(a.activity_code||"活动码待定")}</p></article>`,
+            `<article class="surface"><h3>${esc(a.name)}</h3></article>`,
         )
-        .join("") : emptyPanel("还没有参与活动","通过活动码开始游戏后，这里会保留参与记录。"));
+        .join("") : emptyPanel("还没有创建活动","创建后即可获得活动码。"));
   } else if (tab === "feedback") {
-    await refreshPending();
-    html =
-      "<h1>本场反馈</h1>" + (pending.length?`<div class="feedback-overview"><p>还有 <strong>${pending.length}</strong> 场待完成反馈</p><label>选择场次<select id="survey-select">${pending.map(item=>`<option value="${item.id}">${esc(item.location||'场次 '+item.id)} · ${new Date(Number(item.ended_at)).toLocaleString()}</option>`).join('')}</select></label></div>`:emptyPanel('所有场次反馈已完成','谢谢你的现场反馈，期待下一次带领。')) +
-      pending
-        .map(
-          (s) =>
-            `<form class="session-survey" data-survey="${s.id}" tabindex="0" aria-label="本场反馈问卷"><div class="survey-heading"><span class="list-kicker">待完成反馈</span><h3>${esc(s.location || "场次 " + s.id)}</h3></div>${s.questionnaire.questions.map((q) => `<label>${esc(q.label)}${q.type === "select" ? `<select name="${esc(q.id)}" required><option value="">请选择</option>${q.options.map((o) => `<option>${esc(o)}</option>`).join("")}</select>` : `<textarea name="${esc(q.id)}" required maxlength="1000" placeholder="写下你的现场观察…"></textarea>`}</label>`).join("")}<button class="button primary">提交反馈并关闭本场</button></form>`,
-        )
-        .join("") +
-      "" +
-      '<details class="feedback-other"><summary>其他意见与问题</summary><form id="general-feedback" tabindex="0" aria-label="其他意见表单"><label>意见类型<select name="type"><option value="reflection">体验反馈</option><option value="suggestion">功能建议</option><option value="bug">问题报告</option></select></label><label>内容<textarea name="content" required maxlength="1000" placeholder="哪些地方帮助了你？还有什么可以改进？"></textarea></label><button class="button">提交意见</button></form></details>';
+    const data=await request('/api/me/sessions');
+    html='<h1>复盘反馈</h1><div class="session-list">'+((data.sessions||[]).map((item,i)=>sessionRow(item,i,esc)).join('')||emptyPanel('还没有活动记录','开始游戏后，可以在这里回看本局与提交反馈。'))+'</div>';
   }
   if (generation !== current) return;
-  $("#account-content").innerHTML = html;
+  $('#account-content').innerHTML=html;
+  root.querySelectorAll('[data-session-summary]').forEach(b=>b.onclick=()=>safe(()=>sessionSummary(Number(b.dataset.sessionSummary))));
+  root.querySelectorAll('[data-session-document]').forEach(b=>b.onclick=()=>safe(()=>sessionDocument(Number(b.dataset.sessionDocument))));
+  root.querySelectorAll('[data-session-feedback]').forEach(b=>b.onclick=()=>safe(()=>sessionFeedback(Number(b.dataset.sessionFeedback))));
   $("#account-content").dataset.ready="true";
-  const surveySelect=$('#survey-select');
-  if(surveySelect){const selectSurvey=()=>root.querySelectorAll('.session-survey').forEach(form=>{const current=form.dataset.survey===surveySelect.value;form.hidden=!current;form.inert=!current});surveySelect.onchange=selectSurvey;selectSurvey()}
   bind('switch-account',()=>chooseAccount({modal:true}));
   bind('entitlements',entitlements);bind('profile-downloads',downloads);bind('login-session',showLoginSession);
   bind('study-materials',studyMaterials);bind('created-activities',createdActivities);
@@ -1132,34 +1130,6 @@ async function me(tab = "profile") {
         await me();
       });
     };
-  root.querySelectorAll("[data-session]").forEach(
-    (b) =>
-      (b.onclick = () =>
-        safe(async () => {
-          const data = await request(
-            "/api/player/session/" + b.dataset.session,
-          );
-          session = data.session;
-          state = data.state;
-          events = data.events;
-          await loadCards(session.card_group_id);
-          card = null;
-          game();
-        })),
-  );
-  root.querySelectorAll("[data-file]").forEach(
-    (b) =>
-      (b.onclick = () =>
-        safe(async () => {
-          const response = await fetch("/api/session-files/" + b.dataset.file, {
-            headers: {
-              Authorization: "Bearer " + localStorage.getItem("WQT_AUTH_TOKEN"),
-            },
-          });
-          if (!response.ok) throw new Error("文件暂不可下载");
-          downloadBlob(await response.blob(), b.dataset.filename || "场次文件");
-        })),
-  );
   root.querySelectorAll("[data-study]").forEach(
     (b) =>
       (b.onclick = () => {
@@ -1179,30 +1149,7 @@ async function me(tab = "profile") {
         );
       }),
   );
-  root.querySelectorAll("[data-survey]").forEach(
-    (f) =>
-      (f.onsubmit = (e) => {
-        e.preventDefault();
-        safe(async () => {
-          await write("/api/player/feedback", {
-            sessionId: Number(f.dataset.survey),
-            answers: Object.fromEntries(new FormData(f)),
-          });
-          await me("feedback");
-        });
-      }),
-  );
-  if ($("#general-feedback"))
-    $("#general-feedback").onsubmit = (e) => {
-      e.preventDefault();
-      safe(async () => {
-        await request("/api/me/feedback", {
-          body: Object.fromEntries(new FormData(e.target)),
-        });
-        e.target.reset();
-        $("#page-error").textContent = "反馈已保存";
-      });
-    };
+
 }
 // Refresh preserves server state, never trusts local score drafts.
 setInterval(() => {

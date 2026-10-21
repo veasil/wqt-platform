@@ -3,6 +3,12 @@
     <h1 class="page-title">活动管理</h1>
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" style="margin-bottom:16px" />
     <el-alert v-if="pendingOperation" title="上一次活动操作结果未确认" type="warning" :closable="false"><el-button :loading="saving" @click="retry">重试原操作</el-button></el-alert>
+    <el-alert v-if="notifications.length" title="新建活动通知" type="info" :closable="false" style="margin-bottom:16px">
+      <div v-for="notice in notifications" :key="notice.activity_id" class="activity-notice">
+        <span>{{ notice.name }} · {{ notice.organizer }} · {{ fmt(notice.created_at) }}</span>
+        <el-button text :disabled="saving || !!pendingOperation" @click="acknowledge(notice.activity_id)">已知悉</el-button>
+      </div>
+    </el-alert>
     <div class="toolbar">
       <el-button type="primary" @click="load">刷新</el-button>
       <el-button type="success" :disabled="saving || !!pendingOperation" @click="openCreate">新建活动</el-button>
@@ -36,6 +42,7 @@
           </template>
           <el-button size="small" @click="openSessions(row)">查看桌次</el-button>
           <el-button size="small" :disabled="saving || !!pendingOperation" @click="openEdit(row)">编辑</el-button>
+          <el-button v-if="row.status === 'active'" size="small" type="danger" :disabled="saving || !!pendingOperation" @click="setStatus(row, 'ended')">终止</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -54,6 +61,13 @@
         <el-form-item label="组织方"><el-input v-model="form.organizer" /></el-form-item>
         <el-form-item label="开始"><el-date-picker v-model="form.started_at" type="datetime" value-format="x" style="width:100%" /></el-form-item>
         <el-form-item label="结束"><el-date-picker v-model="form.ended_at" type="datetime" value-format="x" style="width:100%" /></el-form-item>
+        <template v-if="editing && form.configuration">
+          <el-form-item label="卡牌组"><el-select v-model="form.configuration.cardGroupId"><el-option v-for="group in cardGroups" :key="group.id" :label="group.name" :value="group.id" /></el-select></el-form-item>
+          <el-form-item label="模式"><el-input v-model="form.configuration.mode" /></el-form-item>
+          <el-form-item label="时长(秒)"><el-input-number v-model="form.configuration.duration" :min="1" :max="10800" /></el-form-item>
+          <el-form-item v-if="form.configuration.ageRange" label="参与年龄"><el-input-number v-model="form.configuration.ageRange.min" :min="0" :max="120" /> ～ <el-input-number v-model="form.configuration.ageRange.max" :min="0" :max="120" /></el-form-item>
+          <el-form-item v-for="(phase,i) in ['启蒙期','成长期','青春期']" :key="phase" :label="phase+'卡数'"><el-input-number v-model="form.configuration.counts[i]" :min="0" :max="15" /></el-form-item>
+        </template>
         <el-form-item label="状态" v-if="editing">
           <el-select v-model="form.status" style="width:100%">
             <el-option label="进行中 active" value="active" />
@@ -87,12 +101,13 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { listActivities, createActivity, updateActivity, listActivitySessions } from '../api/admin'
+import { listActivities, createActivity, updateActivity, listActivitySessions, listCardGroups } from '../api/admin'
 import api from '../api'
 import {useAuthStore} from '../stores/auth'
 import {createOperationClient} from '../utils/entitlements'
 
 const activities = ref([])
+const notifications=ref([]),cardGroups=ref([])
 const loading = ref(false)
 const error=ref(''),loaded=ref(false),auth=useAuthStore()
 const client=createOperationClient({actor:{identityId:auth.user?.identityId,accountId:auth.user?.accountId},scope:'activities',storage:sessionStorage,
@@ -110,6 +125,13 @@ async function retry() {
   try {await client.retry();dialog.value=false;await load();ElMessage.success('活动操作已确认')}
   catch(e) {error.value=e.response?.data?.error || e.message}
   finally {pendingOperation.value=client.pending;saving.value=false}
+}
+async function acknowledge(id) {
+  if(saving.value || pendingOperation.value)return
+  saving.value=true
+  try{await client.execute(`/api/admin/activities/${id}/acknowledge`,{});await load()}
+  catch(e){error.value=e.response?.data?.error || e.message}
+  finally{saving.value=false;pendingOperation.value=client.pending}
 }
 function fmt(ts) { return ts ? new Date(Number(ts)).toLocaleString('zh-CN', { hour12: false }) : '' }
 
@@ -141,6 +163,10 @@ async function load() {
       (a, b) => (isPending(a) ? 0 : 1) - (isPending(b) ? 0 : 1)
     )
     loaded.value=true
+    if(auth.isAccountModel){
+      notifications.value=(await api.get('/api/admin/activities/notifications')).data.notifications || []
+      cardGroups.value=(await listCardGroups()).data.groups || []
+    }
   }
   catch (e) { activities.value=[];error.value=e.response?.data?.error || '加载失败';ElMessage.error(error.value) }
   finally { loading.value = false }
@@ -148,7 +174,7 @@ async function load() {
 
 async function setStatus(row, status) {
   if(saving.value || pendingOperation.value) return
-  const word = status === 'active' ? '通过' : '驳回'
+  const word = status === 'active' ? '通过' : status === 'ended' ? '终止' : '驳回'
   try {
     await ElMessageBox.confirm(`确认${word}活动「${row.name}」？`, `${word}申请`, { type: 'warning' })
   } catch { return }
@@ -164,16 +190,16 @@ const dialog = ref(false)
 const editing = ref(false)
 const saving = ref(false)
 const editId = ref(null)
-const form = reactive({ name: '', organizer: '', started_at: null, ended_at: null, status: 'active', category: 'general' })
+const form = reactive({ name: '', organizer: '', started_at: null, ended_at: null, status: 'active', category: 'general',configuration:null })
 
 function openCreate() {
   editing.value = false; editId.value = null
-  Object.assign(form, { name: '', organizer: '', started_at: null, ended_at: null, status: 'active', category: 'general' })
+  Object.assign(form, { name: '', organizer: '', started_at: null, ended_at: null, status: 'active', category: 'general',configuration:null })
   dialog.value = true
 }
 function openEdit(row) {
   editing.value = true; editId.value = row.id
-  Object.assign(form, { name: row.name, organizer: row.organizer || '', started_at: row.started_at, ended_at: row.ended_at, status: row.status })
+  Object.assign(form, { name: row.name, organizer: row.organizer || '', started_at: row.started_at, ended_at: row.ended_at, status: row.status,configuration:row.game_config_json?JSON.parse(row.game_config_json):null })
   dialog.value = true
 }
 async function save() {
@@ -182,7 +208,7 @@ async function save() {
   saving.value = true
   try {
     const body = { name: form.name, organizer: form.organizer || null, started_at: form.started_at || null, ended_at: form.ended_at || null }
-    if (editing.value) { body.status = form.status; await write(editId.value, body) }
+    if (editing.value) { body.status = form.status;if(form.configuration)body.configuration=form.configuration; await write(editId.value, body) }
     else { body.category = form.category; await write(null, body) }
     ElMessage.success('已保存'); dialog.value = false; load()
   } catch (e) { ElMessage.error(e.response?.data?.error || '保存失败') }
