@@ -88,6 +88,19 @@ test("enabled captcha requires every runtime credential before database initiali
   }
 });
 
+test('Aliyun captcha requires dedicated credentials, valid region and public identifiers',()=>{
+  const captcha={CAPTCHA_ENABLED:'true',CAPTCHA_PROVIDER:'aliyun',ALIYUN_CAPTCHA_REGION:'cn',
+    ALIYUN_CAPTCHA_PREFIX:'synthetic-prefix',ALIYUN_CAPTCHA_SCENE_ID:'synthetic-scene',
+    ALIYUN_CAPTCHA_ACCESS_KEY_ID:'synthetic-id',ALIYUN_CAPTCHA_ACCESS_KEY_SECRET:'synthetic-secret'};
+  assertAccepted(()=>validateStartupEnvironment(validEnvironment(captcha)));
+  assertAccepted(()=>validateStartupEnvironment(validEnvironment({...captcha,ALIYUN_CAPTCHA_REGION:'sgp'})));
+  for(const key of Object.keys(captcha).filter(k=>k.startsWith('ALIYUN_CAPTCHA_')))
+    for(const missing of [undefined,'','   '])
+      assertRejected(()=>validateStartupEnvironment(validEnvironment({...captcha,[key]:missing})),key);
+  for(const [key,value] of [['ALIYUN_CAPTCHA_REGION','hk'],['ALIYUN_CAPTCHA_PREFIX','invalid.example/path'],['ALIYUN_CAPTCHA_SCENE_ID','<invalid>'],['CAPTCHA_PROVIDER','unknown']])
+    assertRejected(()=>validateStartupEnvironment(validEnvironment({...captcha,[key]:value})),key);
+});
+
 test("staging requires endpoint and bucket identity to match the expected deployment", () => {
   const staging = validEnvironment({
     SERVER_ENV: "staging",

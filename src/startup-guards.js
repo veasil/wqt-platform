@@ -1,4 +1,5 @@
 import pg from "pg";
+import {captchaConfigurationError} from './services/captcha-config.js';
 import { decryptVal } from "./config.js";
 
 export const protectedKeys = new Set([
@@ -64,8 +65,8 @@ export function validateStartupEnvironment(env = process.env) {
   if (isolated(env)) return;
   if (env.NODE_ENV !== "production") fail("NODE_ENV");
   if (String(env.CAPTCHA_ENABLED || "").toLowerCase() === "true") {
-    for (const key of ["CAPTCHA_APP_ID", "CAPTCHA_APP_SECRET_KEY", "TENCENT_SECRET_ID", "TENCENT_SECRET_KEY"])
-      if (!present(env[key])) fail(key);
+    const field = captchaConfigurationError(env);
+    if (field) fail(field);
   }
   if (!["staging", "prod"].includes(env.SERVER_ENV)) fail("SERVER_ENV");
   if (

@@ -25,6 +25,7 @@ import { registerActivityRoutes } from "./game/activities/routes.js";
 
 import { registerDownloadRoutes } from "./platform/downloads/routes.js";
 import { registerPlayerRoutes } from "./game/player/routes.js";
+import {aliyunCaptchaCsp} from './services/captcha-config.js';
 
 export function createApp({
   runtimeConfig = defaultConfig,
@@ -32,6 +33,7 @@ export function createApp({
 } = {}) {
   const config = runtimeConfig;
   const app = express();
+  const captchaCsp = aliyunCaptchaCsp();
   const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 50 * 1024 * 1024 },
@@ -61,6 +63,7 @@ export function createApp({
             "https://cdn.jsdelivr.net",
             "https://turing.captcha.qcloud.com",
             "https://turing.captcha.gtimg.com",
+            ...captchaCsp.scripts,
           ],
           // helmet 默认带 script-src-attr 'none' 会屏蔽所有 onclick=/onsubmit= 等内联事件处理器
           // (index.html/my.html 等大量用到)，显式放开与 script-src 同等放宽，保持现状不破
@@ -69,11 +72,13 @@ export function createApp({
             "'self'",
             "'unsafe-inline'",
             "https://fonts.googleapis.com",
+            ...captchaCsp.styles,
           ],
-          "font-src": ["'self'", "https://fonts.gstatic.com"],
+          "font-src": ["'self'", "https://fonts.gstatic.com", ...captchaCsp.fonts],
           "img-src": [
             "'self'",
             "data:",
+            ...captchaCsp.images,
             "https://ai5000days-scoring-system-hk.oss-cn-hongkong.aliyuncs.com",
             "https://ai5000days-wqt-next-live-hk.oss-cn-hongkong.aliyuncs.com",
           ],
@@ -82,8 +87,8 @@ export function createApp({
             "https://ai5000days-scoring-system-hk.oss-cn-hongkong.aliyuncs.com",
             "https://ai5000days-wqt-next-live-hk.oss-cn-hongkong.aliyuncs.com",
           ],
-          "connect-src": ["'self'", "https://turing.captcha.qcloud.com"],
-          "frame-src": ["'self'", "https://scoring.ai5000days.com", "https://turing.captcha.qcloud.com", "https://turing.captcha.gtimg.com"],
+          "connect-src": ["'self'", "https://turing.captcha.qcloud.com", ...captchaCsp.connect],
+          "frame-src": ["'self'", "https://scoring.ai5000days.com", "https://turing.captcha.qcloud.com", "https://turing.captcha.gtimg.com", ...captchaCsp.frames],
           "worker-src": ["'self'", "blob:"],
           "frame-ancestors": ["'none'"],
           "object-src": ["'none'"],

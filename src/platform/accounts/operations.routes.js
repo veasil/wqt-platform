@@ -13,7 +13,7 @@ import {identitySessionRecords,revokeIdentitySession} from '../../services/ident
 import {encryptVal,decryptVal} from '../../config.js';
 import {protectedKeys} from '../../startup-guards.js';
 
-const environmentKeys=new Set([...protectedKeys,'CAPTCHA_ENABLED','CAPTCHA_APP_ID','CAPTCHA_APP_SECRET_KEY','TENCENT_SECRET_ID','TENCENT_SECRET_KEY']);
+const environmentKeys=new Set([...protectedKeys,'CAPTCHA_ENABLED','CAPTCHA_PROVIDER','CAPTCHA_APP_ID','CAPTCHA_APP_SECRET_KEY','TENCENT_SECRET_ID','TENCENT_SECRET_KEY','ALIYUN_CAPTCHA_REGION','ALIYUN_CAPTCHA_PREFIX','ALIYUN_CAPTCHA_SCENE_ID','ALIYUN_CAPTCHA_ACCESS_KEY_ID','ALIYUN_CAPTCHA_ACCESS_KEY_SECRET']);
 const sensitive=key=>/(KEY|SECRET|TOKEN|PASSWORD)/i.test(key) || ['BMOB_APP_ID','OSS_BUCKET_NAME','OSS_REGION','OSS_ENDPOINT'].includes(key);
 const orgId=value=>value===0 || value==='0' ? 0:positiveId(value);
 function audited(req,kind,input,work) {

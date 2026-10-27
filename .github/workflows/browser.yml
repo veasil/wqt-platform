@@ -38,6 +38,8 @@ jobs:
       - name: Cross-origin admin handoff and organization entitlement editing
         run: python tests/browser/verify-admin-access-rights.py
       - name: SMS provider and countdown contract tests
-        run: node --test tests/sms-provider.test.mjs tests/frontend/sms-cooldown.test.mjs
+        run: node --test tests/sms-provider.test.mjs tests/frontend/sms-cooldown.test.mjs tests/frontend/captcha-loading.test.mjs
+      - name: Aliyun captcha proof and SDK recovery across authentication pages
+        run: python tests/browser/verify-aliyun-captcha.py
       - name: Fixed renewal and operation recovery rules
         run: node --test tests/admin-entitlements.test.mjs
