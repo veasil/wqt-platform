@@ -72,6 +72,8 @@ npm --prefix admin-web run dev
 
 `.env`、密钥、生产数据和 `_migration/` 导出不提交。外部功能尚未配置时，服务启动成功不等于短信、上传和 AI 已可用。
 
+阿里云验证码2.0接入使用独立 `ALIYUN_CAPTCHA_*` 部署配置，不能复用 OSS 密钥；`CAPTCHA_PROVIDER` 未设置时保留腾讯。中国内地配置、场景形态、受控凭据交接及上线验证顺序见[阿里云验证码配置](aliyun-captcha-setup.md)。新版生产已运行c466f02，实际镜像、配置及验证证据见[生产切换记录](../changes/WQT-009-hk-first-release/aliyun-captcha-release-20261027.md)；后续工作稿不自动代表线上状态。
+
 本机受控玩家UAT默认使用隔离环境，不继承`.env`全部变量。需要真实短信时，为 `tests/manual/player-uat.mjs` 或保留已有数据的 `tests/manual/resume-player-uat.mjs` 显式增加 `--live-sms`，仅白名单载入Bmob两项配置；腾讯人机验证使用独立 `--live-captcha`。恢复已有库必须指定owned数据库并使用resume入口，不能用会在退出时清理资源的新建入口。`/api/auth/verification-options` 的 `smsMode` 表示live/mock/unavailable，仅说明服务配置，不代表手机收件或供应商额度已验证。参见[登录与视觉修订](../changes/WQT-006-account-permissions/login-visual-followup-20261016.md)。
 
 ## 自动验证

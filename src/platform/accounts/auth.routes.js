@@ -29,7 +29,7 @@ for (const [path,adminOnly] of [['/api/auth/login',false],['/api/auth/admin-logi
     if(['password','legacy'].includes(input.verificationMethod) || (!input.verificationMethod && input.password)){
       if(!CAPTCHA_ENABLED && !['test','development'].includes(process.env.NODE_ENV))
         return res.status(503).json({error:'人机验证尚未配置，请稍后重试'});
-      const checked=await verifyCaptcha({ticket:input.captchaTicket,randstr:input.captchaRandstr,ip:req.ip});
+      const checked=await verifyCaptcha({ticket:input.captchaTicket,randstr:input.captchaRandstr,captchaVerifyParam:input.captchaVerifyParam,ip:req.ip});
       if(!checked.ok)return res.status(400).json({error:checked.error || '请先完成人机验证'});
     }
     const identity=await dbGet('SELECT * FROM identities WHERE phone=?',[phone]);

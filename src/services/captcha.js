@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import fetch from "node-fetch";
+import {captchaProvider,captchaConfigurationError} from './captcha-config.js';
 
 /**
  * 行为/图形验证码人机校验（防自动化批量刷短信）。
@@ -7,7 +8,8 @@ import fetch from "node-fetch";
  * 默认关闭：CAPTCHA_ENABLED 不为 "true" 时，verifyCaptcha 直接放行并打印一次告警，
  * 此时短信接口仅靠限流防护。生产环境强烈建议接入腾讯云天御后开启。
  *
- * 启用所需环境变量（腾讯云天御 Captcha）：
+ * CAPTCHA_PROVIDER=aliyun 时走验证码2.0，使用独立 ALIYUN_CAPTCHA_* 配置。
+ * 未指定 provider 时兼容腾讯云天御，所需环境变量：
  *   CAPTCHA_ENABLED=true
  *   TENCENT_SECRET_ID        腾讯云 API 密钥 SecretId
  *   TENCENT_SECRET_KEY       腾讯云 API 密钥 SecretKey
@@ -71,13 +73,23 @@ let warnedDisabled = false;
  * 校验前端提交的验证码票据。
  * @returns {Promise<{ok:boolean, skipped?:boolean, error?:string}>}
  */
-export async function verifyCaptcha({ ticket, randstr, ip } = {}) {
+export async function verifyCaptcha({ ticket, randstr, ip, captchaVerifyParam } = {}) {
   if (!CAPTCHA_ENABLED) {
     if (!warnedDisabled) {
       console.warn("⚠️  人机验证未开启（CAPTCHA_ENABLED!=true），短信接口仅靠限流防护。生产建议接入腾讯云天御。");
       warnedDisabled = true;
     }
     return { ok: true, skipped: true };
+  }
+
+  const invalidField = captchaConfigurationError();
+  if (invalidField) {
+    console.error('Captcha configuration invalid:', invalidField);
+    return {ok:false,error:'人机验证服务未正确配置'};
+  }
+  if (captchaProvider() === 'aliyun') {
+    const {verifyAliyunCaptcha} = await import('./aliyun-captcha.js');
+    return verifyAliyunCaptcha(captchaVerifyParam);
   }
 
   const secretId = process.env.TENCENT_SECRET_ID;

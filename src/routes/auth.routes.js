@@ -136,6 +136,7 @@ router.post("/api/auth/sms/send", async (req, res) => {
 
   // ① 人机校验（CAPTCHA_ENABLED 时强制；未启用则放行并告警）
   const cap = await verifyCaptcha({
+    captchaVerifyParam: req.body?.captchaVerifyParam,
     ticket: req.body?.captchaTicket,
     randstr: req.body?.captchaRandstr,
     ip: req.ip,
