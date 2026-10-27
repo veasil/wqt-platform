@@ -1,6 +1,6 @@
 # 阿里云验证码 2.0 配置
 
-适用 WQT-009 的阿里云接入工作稿；未发布不代表生产已切换。[本次变更与证据](../changes/WQT-009-hk-first-release/aliyun-captcha-20261027.md)。
+适用 WQT-009 阿里云验证码接入；c466f02 已在新版生产运行，[生产切换证据](../changes/WQT-009-hk-first-release/aliyun-captcha-release-20261027.md)。后续工作稿不自动替代已发布版本。
 
 ## 控制台准备
 
