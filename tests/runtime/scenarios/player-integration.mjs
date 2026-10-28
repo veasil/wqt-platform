@@ -69,7 +69,7 @@ export async function run() {
     ).lastID;
     const release = (
       await cardsDbRun(
-        "INSERT INTO cards_released(card_id,key,safety_type,event,phase,options_json,released_at,title,card_code) VALUES(?,99001,'身体','吃饭时手机响了','启蒙期',?,?,'吃饭与屏幕','2026B01')",
+        "INSERT INTO cards_released(card_id,key,safety_type,event,phase,options_json,released_at,title,card_code) VALUES(?,99001,'身体','吃饭时手机响了','青春期',?,?,'吃饭与屏幕','2026B01')",
         [cardId, JSON.stringify(options), now],
       )
     ).lastID;
@@ -210,6 +210,10 @@ export async function run() {
     const chosen = await api("/api/player/action", actionInput, token);
     assert.equal(chosen.status, 200, JSON.stringify(chosen.data));
     assert.equal(chosen.data.state.values[0], 2);
+    assert.deepEqual(chosen.data.state.done,[1,0,0]);
+    assert.equal(chosen.data.state.phase,0);
+    assert.equal(chosen.data.state.choices[0].phase,0);
+    assert.equal(chosen.data.payload.phase,'青春期');
     assert.equal(
       (await api("/api/player/action", actionInput, token)).data.state.revision,
       1,

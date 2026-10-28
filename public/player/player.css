@@ -224,3 +224,13 @@ html[data-theme=light] .game-drawer select,html[data-theme=light] .game-drawer t
 #player-content[data-account-tab=feedback] #account-content{height:auto;min-height:360px;max-height:none;overflow:visible}
 @media(max-width:1000px){.session-row{grid-template-columns:52px minmax(0,1fr);gap:18px}.session-row-actions{grid-column:2;flex-wrap:wrap}.session-summary-grid{grid-template-columns:1fr}}
 @media(max-width:540px){.session-row{grid-template-columns:40px minmax(0,1fr);gap:12px}.session-row-actions{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;gap:8px}.session-row-actions .button{font-size:13px;padding:10px 5px}.session-summary-dialog,.activity-config-dialog{width:calc(100vw - 20px);padding:20px 16px}.session-row-info p{font-size:13px;gap:8px}.age-range{gap:8px}}
+
+/* A definite height keeps WebKit from collapsing the flexible card list to its padding. */
+.game-drawer.card-selection-picker{height:min(820px,calc(100dvh - 32px));max-height:calc(100dvh - 32px);overflow:auto;overscroll-behavior:contain}
+.card-selection-picker .drawer-head,.card-selection-picker .picker-toolbar,.card-selection-picker .picker-filters,.card-selection-picker .picker-count{flex-shrink:0}
+.card-selection-picker .picker-toolbar{margin:0 0 12px}
+.card-selection-picker .picker-filters{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;margin:0 0 6px}
+.card-selection-picker .picker-filters select,.card-selection-picker .picker-filters button,.card-selection-picker .drawer-close{min-height:44px}
+.card-selection-picker .drawer-close{min-width:44px}
+.card-selection-picker #card-list{flex:1 1 0px;min-height:150px;max-height:none;margin-top:8px;overflow:auto;overscroll-behavior:contain}
+@media(max-width:700px){.card-selection-picker .picker-filters{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.card-selection-picker .picker-filters button{grid-column:1/-1}.card-selection-picker input,.card-selection-picker select{font-size:16px}}
