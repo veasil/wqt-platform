@@ -583,22 +583,23 @@ function game() {
 function pick() {
   dialog(
     "选择当前卡牌",
-    `<div class="picker-toolbar"><label>卡牌编号或标题<input id="card-search" aria-label="卡号或标题" placeholder="输入卡号或标题"></label></div><div class="picker-filters"><label>风险分类<select id="card-risk"><option value="">全部风险</option>${[...new Set(cards.map(c=>c.safetyType))].map(n=>`<option>${esc(n)}</option>`).join('')}</select></label><button id="reset-card-filters" class="button">重置筛选</button></div><p class="picker-count" id="picker-count" role="status"></p><div id="card-list" class="card-grid"></div>`,
+    `<div class="picker-toolbar"><label>卡牌编号或标题<input id="card-search" aria-label="卡号或标题" placeholder="输入卡号或标题"></label></div><div class="picker-filters"><label>风险分类<select id="card-risk"><option value="">全部风险</option>${[...new Set(cards.map(c=>c.safetyType))].map(n=>`<option>${esc(n)}</option>`).join('')}</select></label><label>卡牌阶段<select id="card-phase"><option value="">全部阶段</option>${phases.map(phase=>`<option>${esc(phase)}</option>`).join('')}</select></label><button id="reset-card-filters" class="button">重置筛选</button></div><p class="picker-count" id="picker-count" role="status"></p><div id="card-list" class="card-grid"></div>`,
   );
-  activeDialog.classList.add("flow-card-picker");
+  activeDialog.classList.add("flow-card-picker", "card-selection-picker");
   const render = () => {
     const risk=$("#card-risk").value;
+    const phase=$("#card-phase").value;
     const q = $("#card-search").value.trim().toLowerCase();
     $("#card-list").innerHTML =
       cards
         .filter(
           (c) =>
-            (practice || c.phase === phases[state.phase]) && (!risk||c.safetyType===risk) &&
+            (!phase || c.phase === phase) && (!risk||c.safetyType===risk) &&
             (!q || (c.card_code + " " + c.title).toLowerCase().includes(q)),
         )
         .map(
           (c) =>
-            `<button class="card-tile" data-card="${c.id}"><small>${esc(c.card_code)} · ${esc(c.safetyType)}</small><h2>${esc(c.title)}</h2></button>`,
+            `<button class="card-tile" data-card="${c.id}"><small>${esc(c.card_code)} · ${esc(c.phase)} · ${esc(c.safetyType)}</small><h2>${esc(c.title)}</h2></button>`,
         )
         .join("") || note("没有符合条件的未选卡牌");
     $("#picker-count").textContent="找到 "+$("#card-list").querySelectorAll("[data-card]").length+" 张卡牌";
@@ -616,7 +617,8 @@ function pick() {
       );
   };
   $("#card-risk").onchange=render;
-  bind("reset-card-filters",()=>{$("#card-search").value="";$("#card-risk").value="";render()});
+  $("#card-phase").onchange=render;
+  bind("reset-card-filters",()=>{$("#card-search").value="";$("#card-risk").value="";$("#card-phase").value="";render()});
   $("#card-search").oninput = render;
   render();
 }

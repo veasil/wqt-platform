@@ -23,6 +23,34 @@ const card = {
     },
   },
 };
+test('cross-phase cards score in the current game phase while preserving catalog phase', () => {
+  let state=initialState({duration:300,counts:[1,1,1]},1000);
+  const adolescence={...card,id:45,card_code:'Y15',phase:'青春期'};
+  let result=applyAction(state,{action:'choice',revision:0,choice:'A'},adolescence,1000);
+  assert.deepEqual(result.state.done,[1,0,0]);
+  assert.equal(result.state.phase,0);
+  assert.equal(result.state.pending,'phase');
+  assert.equal(result.state.values[0],2);
+  assert.equal(result.payload.phase,'青春期');
+  assert.equal(result.state.choices[0].phase,0);
+  assert.throws(()=>applyAction(result.state,{action:'choice',revision:1,choice:'A'},card,1000),/请先处理阶段结果/);
+  state=applyAction(result.state,{action:'advance',revision:1},null,1000).state;
+  assert.equal(state.phase,1);
+  result=applyAction(state,{action:'choice',revision:2,choice:'A'},card,1000);
+  assert.deepEqual(result.state.done,[1,1,0]);
+  assert.equal(result.payload.phase,'启蒙期');
+  assert.equal(result.state.choices[1].phase,1);
+  assert.deepEqual(state.done,[1,0,0],'input state remains immutable');
+  assert.throws(()=>applyAction(state,{action:'choice',revision:2,choice:'A'},{...card,phase:'unknown'},1000),/卡牌阶段无效/);
+  const paused={...state,paused:true};
+  assert.throws(()=>applyAction(paused,{action:'choice',revision:2,choice:'A'},adolescence,1000),/暂停/);
+  const failed={...state,values:[1,3,3,3,3]};
+  result=applyAction(failed,{action:'choice',revision:2,choice:'A'},adolescence,1000);
+  assert.equal(result.state.pending,'failure');
+  const retry=applyAction(result.state,{action:'advance',revision:3},null,1000).state;
+  assert.deepEqual(retry.done,[1,0,0]);
+  assert.equal(retry.phase,1);
+});
 test('score adjustment accepts an omitted reason and rejects invalid values or oversized reasons', () => {
   const state=initialState({duration:300,counts:[1,0,0]},1000);
   for (const reason of [undefined, '', '   ', '现场观察']) {
