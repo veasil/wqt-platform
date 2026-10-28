@@ -343,7 +343,7 @@
       '  "riskComment": "针对本轮风险遭遇的一句话点评（30字内）",',
       '  "abilityComment": "针对本轮伍力调动的一句话点评（30字内）",',
       '  "story": {',
-      '    "paragraphs": ["闯关故事段落1","段落2","……（8-14段，逐关详写）"],',
+      '    "paragraphs": ["闯关故事段落1","段落2","……（3-5段，正文合计300-500字）"],',
       '    "scenes": [',
       '      {"caption":"配图说明（10字内，点出这是哪一幕）","imagePrompt":"具体画面的中文描述：谁、在哪、在做什么、表情动作、关键道具，越具象越好"}',
       "    ],",
@@ -357,10 +357,10 @@
       "```",
       "要求：",
       "- riskRadar：按卡牌 safetyType 估算本轮各类风险出现的相对强度（0-5 的整数即可），无法判断时给 0。",
-      "- story.paragraphs：这是报告的核心，必须写得详实丰满。【至少 8-14 个自然段、合计不少于 1500 字】。",
-      "  篇幅的丰满必须来自把每张卡的真实字段讲透——每张卡数据都给了：情境(event)、所选选项(optionText)、该选项后果(consequence)、伍力增减(delta 的具体数值)、小伍选它的理由(chosenReason)、以及未选选项(alternatives)。",
-      "  按卡牌顺序逐关展开：交代情境 → 小伍怎么想（用 chosenReason）→ 选了什么 → 后果如何（用 consequence）→ 伍力具体怎么变（点出 delta 的力与数值，如『安全力+2』）→ 必要时对比『本可以怎么选』。",
-      "  靠讲透这些真实字段来写长，而不是靠添加数据里没有的细节。可做心理与情绪刻画，但不得引入新的人物/事物/事件。段落之间自然衔接，写成有起承转合的成长故事而非要点罗列。",
+      "- story.paragraphs：这是报告的核心，分为3-5个自然段，正文合计300-500字（不含标题、插画说明、小贴士和行动公约），不要超出这个字数范围。",
+      "  从真实卡牌中提炼关键情境(event)、所选选项(optionText)、后果(consequence)、伍力变化(delta)、选择理由(chosenReason)，必要时对比未选选项(alternatives)，优先讲清最关键的转折。",
+      "  遵循出牌顺序概括关键转折，不必逐张复述：交代真实情境、选择与后果，点出关键伍力变化（如『安全力+2』），让故事有起承转合。",
+      "  语言精练、段落自然衔接；可做合理的心理与情绪刻画，不添加数据里没有的人物、事物或事件，不为凑字数重复同一内容。",
       "- story.scenes：从本轮故事里挑出【正好 3 个最有张力的时刻】——即最惊险、最纠结、或最关键的转折瞬间（例如面对诱惑的犹豫、识破骗局的机智、独自应对危险的勇敢等），不要选平淡的过场。每个给 caption（这一幕叫什么）和 imagePrompt（具体到人物/场景/动作/道具的中文画面描述，供文生图使用，要能一眼看出在讲什么故事，避免空泛）。scenes 要与 paragraphs 的情节对应。",
       "- story.tips：3 条具体可执行的成长小贴士。",
       "- pact.items：4 条把游戏经验带回真实生活的行动公约，第一人称「我会…」。",
@@ -476,16 +476,16 @@
     const slots = {};
     const n = imgs.length;
     for (let i = 0; i < n; i++) {
-      let idx = Math.floor((i + 0.5) * paras.length / (n + 1));
-      idx = Math.min(Math.max(idx, i === 0 ? 1 : 0), paras.length - 1);
-      while (slots[idx] !== undefined && idx < paras.length) idx++;
-      slots[idx] = i;
+      const firstSlot = paras.length > n ? 1 : 0;
+      const idx = Math.min(Math.max(Math.floor((i + 0.5) * paras.length / (n + 1)), firstSlot + i), paras.length - 1);
+      // Short stories may need multiple images at the same paragraph; never place one past the end.
+      (slots[idx] ||= []).push(i);
     }
     let out = "";
     paras.forEach((p, pi) => {
-      if (slots[pi] !== undefined) {
-        const img = imgs[slots[pi]];
-        const side = slots[pi] % 2 === 0 ? "illu-right" : "illu-left";
+      for (const imageIndex of slots[pi] || []) {
+        const img = imgs[imageIndex];
+        const side = imageIndex % 2 === 0 ? "illu-right" : "illu-left";
         out += `<figure class="illu ${side}"><img src="${img.dataUri}" alt="${E(img.caption || "故事插画")}"/>`
           + (img.caption ? `<figcaption>${E(img.caption)}</figcaption>` : "")
           + "</figure>";

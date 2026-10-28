@@ -45,3 +45,5 @@ jobs:
         run: python tests/browser/verify-aliyun-captcha.py
       - name: Fixed renewal and operation recovery rules
         run: node --test tests/admin-entitlements.test.mjs
+      - name: Short review prompt and concurrent illustration generation
+        run: node --test tests/frontend/review-eligibility.test.mjs tests/frontend/review-generation.test.mjs
