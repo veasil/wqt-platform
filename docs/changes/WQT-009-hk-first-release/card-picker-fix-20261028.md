@@ -33,7 +33,7 @@ WebKit 下弹窗 height:fit-content、纵向 flex、列表 flex:1/min-height:0 �
 
 运行文件及公开资源hash与候选原始字节一致：player.js 0e3f39f89d9066754f397d95cbdc18a1ee763022ca073e616216bafdddbc3bf1；player.css 54087515a6eca057cb74889de5e69086eb4bc5fc4655b5780bfb71140c90c0b0；后端state.js 16f7c28789cfa6e176923e82cc0ba3b6b9f58c1df95209e0706d99ec893d342e。服务器verification.json保留正式核验。
 
-正式域名浏览器检查使用实际部署HTML/JS/CSS，仅注入合成游戏状态与45张合成卡牌，业务API全部拦截。Chromium 393×740显示45张、阶段各15张、重置恢复45张、末张可选中，列表318px，pageerror和业务写入均0。已查看线上资源深浅主题截图：`C:/ArdenDev/tmp/wqt-card-picker-production-20261028/picker-dark.png`、picker-light.png。线上WebKit网络直连发生导航超时，不能将其报告为页面回归失败或真实设备通过；发布前两引擎的本地与Linux CI回归、生产源文件核对均已通过。真实iPhone触摸仍由用户验收，不把Windows WebKit等同实体Safari。
+正式域名浏览器检查使用实际部署HTML/JS/CSS，仅注入合成游戏状态与45张合成卡牌，业务API全部拦截。Chromium 393×740显示45张、阶段各15张、重置恢复45张、末张可选中，列表318px，pageerror和业务写入均0。已查看线上资源深浅主题截图：`C:/ArdenDev/tmp/wqt-card-picker-production-20261028/picker-dark.png`、picker-light.png。线上Windows WebKit直连及本机代理导航均超时，不能将其报告为页面回归失败或真实设备通过；发布前两引擎的本地与Linux CI回归、生产源文件核对均已通过。真实iPhone触摸仍由用户验收，不把Windows WebKit等同实体Safari。
 
 ## 工程复盘
 
