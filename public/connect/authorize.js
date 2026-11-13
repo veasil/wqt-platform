@@ -1,3 +1,4 @@
+import { beginTeamLogin } from '/shared/browser/team-login-return.js';
 const params = new URLSearchParams(location.search);
 const fields = ['client_id', 'redirect_uri', 'state', 'code_challenge', 'code_challenge_method'];
 const input = Object.fromEntries(fields.map(name => [name, params.get(name)]));
@@ -35,12 +36,17 @@ async function checkLogin() {
     if (!accountSelect.options.length) throw new Error('当前身份没有可用教学账号，请联系团队负责人。');
     if (data.user?.accountId) accountSelect.value = String(data.user.accountId);
     if (!accountSelect.value) accountSelect.selectedIndex = 0;
-    form.hidden = false; message.textContent = '登录成功。此连接只用于课件场次操作。';
+    form.hidden = false; message.textContent = '登录成功，正在连接课件…';
+    if (accountSelect.options.length === 1) await connect();
+    else message.textContent = '请选择本次教学账号，随后自动回到课件。';
   } catch (error) { message.textContent = error.message; loginPanel.hidden = false; }
 }
-document.querySelector('#check-login').addEventListener('click', checkLogin);
-form.addEventListener('submit', async event => {
-  event.preventDefault(); const button = document.querySelector('#connect'); button.disabled = true;
+document.querySelector('#login').addEventListener('click', () => {
+  try { if (valid) beginTeamLogin(); } catch { message.textContent = '浏览器暂存不可用，请允许本网站使用会话存储后重试。'; }
+});
+form.addEventListener('submit', event => { event.preventDefault(); connect(); });
+async function connect() {
+  const button = document.querySelector('#connect'); button.disabled = true;
   try {
     if (localStorage.getItem('WQT_AUTH_TOKEN') !== identityToken) throw new Error('登录账号已变化，请重新检查登录。');
     const result = await request('/api/connect/authorize', { ...input, accountId: Number(accountSelect.value) });
@@ -52,5 +58,5 @@ form.addEventListener('submit', async event => {
     if (clean.href !== expected.href) throw new Error('课件返回地址不匹配。');
     location.replace(target.href);
   } catch (error) { message.textContent = error.message; button.disabled = false; }
-});
+}
 checkLogin();

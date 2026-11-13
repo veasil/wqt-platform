@@ -10,7 +10,7 @@
 
     node examples/courseware/emma/serve.mjs
 
-4. 打开 http://localhost:8090/，连接伍仟天。尚未登录时，授权页会提供平台登录入口；登录后回到授权页继续选择账号。
+4. 打开 http://localhost:8090/，连接伍仟天。尚未登录时，授权页会提供平台登录入口；登录后自动继续连接。只有一个账号时直接回到课件；多个账号时选择后返回。
 5. 填入开发库中已发布的卡组编号，开始课堂。localhost 和 127.0.0.1 是不同来源，所有配置保持一致。
 
 serve.mjs 只公开示例文件和 /sdk/team-client.js，不公开仓库、配置环境文件或其他路径。它不启动业务服务、不创建账号、不写数据库。SDK 直接来自 shared/browser/team-client.js，没有第二份复制实现。

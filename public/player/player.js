@@ -1,3 +1,4 @@
+import { hasTeamLoginReturn, returnToTeamAuthorization } from '/shared/browser/team-login-return.js';
 import { request, ApiError } from "./api.js";
 import { userErrorMessage, classifyFault, faultRecord, createFaultDetails } from './errors.js';
 import { createNarrationPlayer } from './narration.js';
@@ -319,6 +320,7 @@ function login(mode = "password") {
         user = data.user;
         accounts = data.accounts;
         localStorage.setItem("WQT_AUTH_TOKEN", data.token);
+        if (returnToTeamAuthorization()) return;
         await restoreAudioDraft();
         await loadSettings();
         await chooseAccount();
@@ -405,10 +407,11 @@ async function resumeLogin(){
    try{const existing=await request('/api/auth/session',{token});if(existing.user?.identityId){localStorage.setItem('WQT_AUTH_TOKEN',token);inherited=true;break}}catch{/* A stale app token must not clear another app's credentials. */}
   }
  }
- if(!localStorage.getItem('WQT_AUTH_TOKEN')){entry();return}
+ if(!localStorage.getItem('WQT_AUTH_TOKEN')){if(hasTeamLoginReturn())login();else entry();return}
  show('entry',surface('正在恢复登录',loadingPanel()));
  try{
   const data=await request('/api/auth/session');loginSession=data.session;user=data.user;accounts=data.accounts;account=accounts.find(a=>a.id===user.accountId)||null;
+  if(returnToTeamAuthorization())return;
   await restoreAudioDraft();
   localStorage.setItem('WQT_USER_CACHE',JSON.stringify(user));await loadSettings();
   if(data.requiresAccountSelection||inherited){await chooseAccount();return}

@@ -47,4 +47,4 @@ jobs:
         run: node --test tests/admin-entitlements.test.mjs
 
       - name: Team application browser client contracts
-        run: node --test tests/frontend/team-client*.test.mjs
+        run: node --test tests/frontend/team-client*.test.mjs tests/frontend/team-login-return.test.mjs

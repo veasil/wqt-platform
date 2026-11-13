@@ -38,7 +38,7 @@ export async function run({demo=false}={}){
    return {status:res.status,data:await res.json(),headers:res.headers};
   }
   async function login(person){const result=await api('/api/auth/login',{phone:person.phone,password,verificationMethod:'password'});assert.equal(result.status,200,JSON.stringify(result.data));return result.data.token}
-  const identityToken=await login(emma),otherIdentity=await login(other);
+  let identityToken=await login(emma);const otherIdentity=await login(other);
   const options={A:{text:'先停一下',consequence:'观察环境',reason:'安全力加一',attributeEffects:{安全力:1}}};
   const card=(await cardsDbRun("INSERT INTO cards(key,safety_type,event,phase,options_json,status,title,card_code) VALUES(99151,'身体','课堂选择','青春期',?,'released','示例卡','TEAM01')",[JSON.stringify(options)])).lastID;
   const released=(await cardsDbRun("INSERT INTO cards_released(card_id,key,safety_type,event,phase,options_json,released_at,title,card_code) VALUES(?,99151,'身体','课堂选择','青春期',?,?,'示例卡','TEAM01')",[card,JSON.stringify(options),now])).lastID;
@@ -57,7 +57,7 @@ export async function run({demo=false}={}){
   assert.equal((await api('/api/connect/token',grant,null,'https://unregistered.example')).status,403);
   const exchanges=await Promise.all([api('/api/connect/token',grant),api('/api/connect/token',grant)]);
   assert.deepEqual(exchanges.map(x=>x.status).sort(),[200,400]);
-  const token=exchanges.find(x=>x.status===200).data.access_token;
+  let token=exchanges.find(x=>x.status===200).data.access_token;
   assert.equal(jwt.decode(token).type,'team_app');assert.notEqual(token,identityToken);
   assert.equal((await api('/api/connect/session',null,token)).status,200);
   for(const path of ['/api/auth/session','/api/admin/stats/overview','/api/me','/api/game/last-session'])assert.equal((await api(path,null,token)).status,403,path);
@@ -93,9 +93,7 @@ export async function run({demo=false}={}){
   const install=async()=>page.evaluate(async config=>{const {createWqtClient}=await import('/sdk/team-client.js');window.client=createWqtClient(config)},configuration);
   await install();
   await page.evaluate(()=>window.client.login());
-  await page.waitForURL(base+'/connect/authorize.html?**');
-  await page.locator('#account').selectOption(String(emma.account));
-  await page.locator('#connect').click();await page.waitForURL(origin+'/?code=**');
+  await page.waitForURL(origin+'/?code=**');
   await install();assert.equal(await page.evaluate(()=>window.client.handleCallback()),true);
   assert.equal(page.url(),redirect,'authorization code removed from browser URL');
   const connection=await page.evaluate(()=>window.client.getConnection());assert.equal(connection.account.id,emma.account);
@@ -121,17 +119,35 @@ export async function run({demo=false}={}){
   demoSite=createCoursewareServer({config:uiConfig});demoSite.listen(0,'127.0.0.1');await once(demoSite,'listening');
   uiConfig.redirectUri=`http://127.0.0.1:${demoSite.address().port}/`;
   registration[0].redirectUris.push(uiConfig.redirectUri);process.env.WQT_TEAM_APPS=JSON.stringify(registration);
-  await page.goto(uiConfig.redirectUri);await page.locator('#login').click();
-  await page.waitForURL(base+'/connect/authorize.html?**');await page.locator('#account').selectOption(String(emma.account));await page.locator('#connect').click();
-  await page.waitForURL(uiConfig.redirectUri);await page.locator('#start').waitFor();
-  await page.locator('input[name=cardGroupId]').fill(String(group));await page.locator('#start').click();
-  await page.locator('#game').waitFor({state:'visible'});
-  await page.locator('details summary').click();await page.locator('input[name=score0]').fill('6');
-  await page.locator('#adjust-form button').click();await page.waitForFunction(()=>document.querySelector('#scores').textContent.includes('6'));
-  await page.reload();await page.locator('#game').waitFor({state:'visible'});assert.match(await page.locator('#scores').innerText(),/6/);
-  await page.locator('#finish').click();await page.locator('#result').waitFor({state:'visible'});
-  assert.ok((await page.locator('#result').innerText()).length>0);assert.deepEqual(errors,[]);
-  await mkdir('tmp/wqt015-evidence',{recursive:true});await page.screenshot({path:'tmp/wqt015-evidence/courseware-result.png',fullPage:true});
+  const freshContext=await browser.newContext();const freshPage=await freshContext.newPage();freshPage.on('pageerror',e=>errors.push(e.message));
+  await freshPage.goto(uiConfig.redirectUri);await freshPage.locator('#login').click();
+  await freshPage.waitForURL(base+'/connect/authorize.html?**');await freshPage.locator('#login').click();
+  await freshPage.waitForURL(base+'/player/?team_connect=1');
+  await freshPage.locator('#auth-form [name=phone]').fill(emma.phone);
+  await freshPage.locator('#auth-form [name=password]').fill(password);
+  await freshPage.locator('#auth-form button.primary').click();
+  await freshPage.waitForURL(uiConfig.redirectUri);await freshPage.locator('#start').waitFor();
+  await freshPage.locator('input[name=cardGroupId]').fill(String(group));await freshPage.locator('#start').click();
+  await freshPage.locator('#game').waitFor({state:'visible'});
+  await freshPage.locator('details summary').click();await freshPage.locator('input[name=score0]').fill('6');
+  await freshPage.locator('#adjust-form button').click();await freshPage.waitForFunction(()=>document.querySelector('#scores').textContent.includes('6'));
+  await freshPage.reload();await freshPage.locator('#game').waitFor({state:'visible'});assert.match(await freshPage.locator('#scores').innerText(),/6/);
+  await freshPage.locator('#finish').click();await freshPage.locator('#result').waitFor({state:'visible'});
+  assert.ok((await freshPage.locator('#result').innerText()).length>0);assert.deepEqual(errors,[]);
+  await mkdir('tmp/wqt015-evidence',{recursive:true});await freshPage.screenshot({path:'tmp/wqt015-evidence/courseware-result.png',fullPage:true});
+  assert.equal(freshContext.pages().length,1,'login and return use one tab');
+  const extraOrg=(await dbRun('INSERT INTO organizations(name,owner_user_id) VALUES(?,0)',['第二个教学组织'])).lastID;
+  const extraAccount=(await dbRun('INSERT INTO accounts(organization_id,name,valid_until,created_at) VALUES(?,?,?,?)',[extraOrg,'另一个教学账号',now+86400000,now])).lastID;
+  await dbRun('INSERT INTO account_bindings(account_id,identity_id,started_at) VALUES(?,?,?)',[extraAccount,emma.id,now]);
+  await freshPage.locator('#login').click();await freshPage.waitForURL(base+'/connect/authorize.html?**');
+  await freshPage.locator('#account-form').waitFor({state:'visible'});
+  assert.equal(await freshPage.locator('#account option').count(),2,'multiple accounts require explicit selection');
+  await freshPage.locator('#account').selectOption(String(emma.account));await freshPage.locator('#connect').click();
+  await freshPage.waitForURL(uiConfig.redirectUri);await freshPage.locator('#result').waitFor({state:'visible'});
+
+  const probe=await freshContext.newPage();await probe.goto(base+'/connect/authorize.html');
+  identityToken=await probe.evaluate(()=>localStorage.getItem('WQT_AUTH_TOKEN'));
+  token=(await api('/api/connect/token',await issue())).data.access_token;await probe.close();
   process.env.WQT_TEAM_APPS='[]';assert.equal((await api('/api/connect/session',null,token)).status,403);
   process.env.WQT_TEAM_APPS=JSON.stringify(registration);
   await dbRun('UPDATE account_bindings SET ended_at=? WHERE account_id=? AND ended_at IS NULL',[Date.now(),emma.account]);
