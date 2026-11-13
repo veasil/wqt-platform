@@ -4,6 +4,9 @@
 
 | 类别 | 入口 | 状态 |
 |---|---|---|
+| 课件协作入口 | [Emma / Codex](development/emma-courseware-integration.md) | 获取代码、课件样例、开始任务提示词 |
+| 版本事实 | [基线地图](development/platform-baseline-map.md) | 旧/新入口、代码与历史发布差异 |
+| 接入契约 | [玩家接口](development/player-api-contract.md) | 当前字段、状态、并发、重试；非公共 SDK |
 | 团队协作 | [CONTRIBUTING](../CONTRIBUTING.md) | Artifact-driven、GitHub、开发循环与验收责任 |
 | 开发变更 | [制品入口](changes/README.md) | WQT 编号、spec / plan / evidence、生成器与 CI |
 | 当前需求 | [vNext 基线](vnext-requirements-and-acceptance.md) | 受控版本范围；原有制品路径继续有效 |

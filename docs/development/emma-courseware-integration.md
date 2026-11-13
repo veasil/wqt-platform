@@ -4,6 +4,18 @@
 
 这是当前本地多迭代代码的协作快照，不等于 main、生产版本或生产发布批准。SDK 尚未开发，本轮不实现课件接入，不承诺稳定的外部 API。验证状态见 [WQT-014](../changes/WQT-014-emma-handoff/change.md)。
 
+## 先用三分钟建立共同理解
+
+这个仓库同时包含伍仟天后端、新版 HTML 玩家前端、旧版兼容入口及两个管理前端。Emma 的课件可以做新的交互入口，首轮先映射现有业务，不预先做 SDK。
+
+按顺序阅读：
+
+1. 本页：从哪里开始、如何协作。
+2. [平台基线地图](platform-baseline-map.md)：旧/新版本、源码与历史生产的区别、已知缺失修复、课件放置建议。
+3. [当前玩家接口契约](player-api-contract.md)：请求字段、响应、状态、冲突和重试。它是源码快照说明，不是已经承诺兼容的公共 API。
+
+**基线目前仍缺少已发布的跨阶段选牌修复，也未包含短复盘候选改动。** 后续对真实服务联调前，维护者须确定集成版本；Codex 不得把这份快照称为“最新生产”。可以先分析课件、形成接口映射和替身原型。
+
 ## 1. 获取代码与提交 PR
 
 首次获取：
@@ -30,7 +42,7 @@ git rev-parse HEAD
 
 使用 Node.js 22、锁文件安装 `npm ci`。两个管理端需要 `npm run build`；HTML 玩家端位于 `public/player/`。浏览器测试需要 Playwright Chromium。
 
-`.env.example` 只是变量示意，仍有旧 SQLite 说明，不是一键可用配置。按照本地开发文档配置专用 PostgreSQL、独立随机 JWT_SECRET 和 SETTINGS_ENCRYPTION_KEY；新版账号链路必须显式设 `WQT_ACCOUNT_MODEL=accounts`，并配置独立 Redis 的 `REDIS_URL` 和自己的 `WQT_REDIS_NAMESPACE`。默认账号模式仍是 legacy，不能仅凭文件存在就认为新版认证已启用。
+`.env.example` 已整理为 PostgreSQL 本地配置示例，包含 Redis 和账号模式说明；占位值必须替换，数据库及测试账号须自行准备，不是一键可用环境。按照本地开发文档配置专用 PostgreSQL、独立随机 JWT_SECRET 和 SETTINGS_ENCRYPTION_KEY；新版账号链路必须显式设 `WQT_ACCOUNT_MODEL=accounts`，并配置独立 Redis 的 `REDIS_URL` 和自己的 `WQT_REDIS_NAMESPACE`。默认账号模式仍是 legacy，不能仅凭文件存在就认为新版认证已启用。
 
 启动 `node --env-file=.env server.js` 会初始化和修改数据库，只能使用专用开发库。不要复制维护者的 `.env` 或连接生产。短信、人机验证、OSS、AI、语音需要各自的配置或测试替身；不要为了跑通课件放宽生产权限校验。测试账号必须在隔离库中建立，不使用共享生产管理员账号。
 
@@ -72,6 +84,24 @@ HTML 可以自定义界面，但真实身份、组织权限、场次归属和持
 
 建议下一轮只完成一份课件的闭环；不预建通用 SDK、课程平台、多租户代理或新积分模型。本说明不授权生产部署、数据迁移、修改登录边界。
 
-可给 Codex 的任务：
+## 8. 可以直接交给 Emma 的 Codex
 
-> 先读 AGENTS.md 和本接入说明。检查我提供的 HTML 课件，列出交互到现有玩家接口的映射、无法复用的规则和跨站登录待决项。先形成小范围变更记录与验收草案；不要做通用 SDK，不改生产，不绕过组织权限。经需求确认后，在 codex/emma-html-courseware 分支实现隔离原型并附 PR 验证证据。
+```text
+我要把自己的 HTML 课件与伍仟天积分系统结合。
+仓库：https://github.com/veasil/wqt-platform
+起点分支：codex/emma-courseware-baseline
+
+若本地没有仓库，clone 指定分支；若已有，先检查工作区并保存我的改动，再 fetch，禁止 reset 或覆盖。创建自己的 codex/emma-html-courseware 分支，记录起点 SHA。
+
+先读 AGENTS.md、docs/development/emma-courseware-integration.md、platform-baseline-map.md、player-api-contract.md（后三份在同一目录）。
+新版界面在 public/player/，后端启用 WQT_ACCOUNT_MODEL=accounts 才注册新版玩家接口。此基线不是最新生产，已知缺少发布修复，不自行全量合并其他分支。
+
+请先检查我提供的课件，交付：
+1. 课件页面和交互清单；哪些动作需要平台保存，哪些仅是页面显示。
+2. 现有 API 映射、业务不匹配项和登录/部署待决项。若我尚未提供课件，先完成仓库梳理，再向我要课件。
+3. 一份最小变更记录与验收草案，明确测试账号、测试数据、独立开发 PG/Redis，以及不依赖真实后端可先做的原型。
+
+首份样例建议在 examples/courseware/emma/，不要替换标准前端，不把整站和生产数据一起提交。这个目录尚无自动托管规则。
+先不做通用 SDK、不改变积分模型、不绕过权限、不把密钥或 token 写进 HTML、不修改生产。范围已确认的独立工作继续推进；仅新增数据/权限/登录边界交维护者判断。
+随后在确认范围内完成隔离验证，记录通过、失败、跳过；有仓库写权限就推送自己的分支，否则推到自己的 fork。PR base 为 codex/emma-courseware-baseline，最终集成和发布由维护者负责。
+```

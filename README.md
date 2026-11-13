@@ -21,7 +21,8 @@
 | 应用 | 技术 | 访问路径 |
 |---|---|---|
 | 后端 API | Node.js / Express / ESM | `/api/*` |
-| 桌游玩家端 | HTML / CSS / JavaScript | `/` |
+| 新版桌游玩家端 | HTML / CSS / JavaScript | `/player/`，API 需 accounts 模式 |
+| 旧版玩家兼容入口 | HTML / CSS / JavaScript | `/` |
 | 组织管理端 | Vue 3 / Vite | `/enterprise/` |
 | 平台管理端 | Vue 3 / Vite | `/admin/` |
 
@@ -62,9 +63,9 @@ npm ci
 node --env-file=.env server.js
 ```
 
-玩家端访问 [localhost:8080](http://localhost:8080/)。管理端开发、外部服务配置及验证限制见开发指南。
+新版玩家端访问 [localhost:8080/player/](http://localhost:8080/player/)，需显式启用 accounts 模式并配置开发 Redis；根路径保留旧版兼容入口。管理端开发、外部服务配置及验证限制见开发指南。
 
-快速检查使用 `npm run lint`、`npm run test:artifacts`、`npm run test:runtime`。未配置测试专用 PG 时，运行时测试只执行无数据库部分，并明确跳过集成用例。完整隔离设置见[开发指南](docs/development/local-development.md)。
+快速检查使用 `npm run lint`、`npm run test:artifacts`、`npm run test:runtime`。未配置测试专用 PG 时，多数数据库用例跳过；Redis 恢复用例仍需要显式 WQT_TEST_REDIS_URL，缺失会失败，不能据此声称完整回归通过。完整隔离设置见[开发指南](docs/development/local-development.md)。
 
 ## 团队协作
 
@@ -77,4 +78,4 @@ node --env-file=.env server.js
 
 ## HTML 课件协作
 
-Emma 与 Codex 请先阅读[课件接入说明](docs/development/emma-courseware-integration.md)和[基线验证记录](docs/changes/WQT-014-emma-handoff/change.md)。本分支是协作快照，SDK 尚未实现，不代表生产部署版本。
+Emma 与 Codex 请先阅读[课件接入说明](docs/development/emma-courseware-integration.md)和[基线验证记录](docs/changes/WQT-014-emma-handoff/change.md)。本分支是协作快照，SDK 尚未实现，不代表生产部署版本。旧/新版和已知发布差异见[基线地图](docs/development/platform-baseline-map.md)，具体字段与状态规则见[接口契约](docs/development/player-api-contract.md)。
