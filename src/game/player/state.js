@@ -124,8 +124,9 @@ export function applyAction(state, input, card, now = Date.now()) {
       !["A", "B", "C", "D"].includes(input.choice)
     )
       throw domainError(409, "卡牌不存在或已确认");
-    if (card.phase !== phases[next.phase])
-      throw domainError(400, "该卡牌不属于当前阶段");
+    // Card classification is independent from the current game progress (2ad6a56).
+    if (!phases.includes(card.phase))
+      throw domainError(400, "卡牌阶段无效");
     const option = card.options[input.choice];
     if (input.choice === "D" && !next.d[card.id])
       throw domainError(400, "尚未创建选项D");

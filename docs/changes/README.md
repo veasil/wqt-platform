@@ -23,3 +23,5 @@ npm run test:artifacts
 小改动仍可使用[单文件模板](../development/change-template.md)，以相同 `WQT-编号-主题` 目录内的 `change.md` 保存目标、验收、计划、证据。检查器支持三文件及单文件两种形式；完成状态由证据与验收人决定，结构检查不代替审批。
 
 - [WQT-014：Emma 课件协作基线](WQT-014-emma-handoff/change.md) · 代码交接与接入说明，SDK 延后。
+
+- [WQT-015：团队独立课件接入](WQT-015-team-courseware/spec.md) · 授权、轻量客户端与独立站点示例。

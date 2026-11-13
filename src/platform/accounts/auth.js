@@ -3,6 +3,7 @@ import { config } from '../../config.js';
 import { dbGet } from '../../db.js';
 import { identitySession } from '../../services/identity-sessions.js';
 import { accountActor, positiveId } from './context.js';
+import { bearerToken, isTeamToken, verifyTeamRequest } from '../team-apps/tokens.js';
 
 export function signIdentityToken(identity,session,accountId=null) {
   return jwt.sign({ type:'identity',identityId:identity.id,accountId,jti:session.jti,
@@ -15,7 +16,11 @@ export async function authenticateIdentity(req,res,next) {
   let payload;
   try { payload=jwt.verify(token,config.JWT_SECRET); }
   catch { return res.status(401).json({error:'登录已过期，请重新登录'}); }
-  if (payload.type!=='identity' || !positiveId(payload.identityId) || payload.env!==(config.SERVER_ENV || 'prod')) return res.status(401).json({error:'登录凭证不适用于当前账号模型或环境'});
+  if (payload.type!=='identity' || payload.aud != null || payload.iss != null || !positiveId(payload.identityId) || payload.env!==(config.SERVER_ENV || 'prod')) return res.status(401).json({error:'登录凭证不适用于当前账号模型或环境'});
+  return authenticateIdentityPayload(payload, req, res, next);
+}
+
+async function authenticateIdentityPayload(payload, req, res, next) {
   try {
     const session=await identitySession(payload.identityId,payload.jti);
     if (!session) return res.status(401).json({error:'登录会话已失效，请重新登录',code:'SESSION_REVOKED'});
@@ -30,7 +35,11 @@ export async function authenticateIdentity(req,res,next) {
 }
 
 export async function authenticateAccount(req,res,next) {
-  return authenticateIdentity(req,res,async (authenticationError) => {
+  const authenticate = isTeamToken(bearerToken(req)) ? async (req,res,next) => {
+    try { req.teamAppPayload=verifyTeamRequest(req); } catch(error) { return next(error); }
+    return authenticateIdentityPayload(req.teamAppPayload,req,res,next);
+  } : authenticateIdentity;
+  return authenticate(req,res,async (authenticationError) => {
     if (authenticationError) return next(authenticationError);
     try {
       const context={identityId:req.identity.id,accountId:req.identityPayload.accountId};

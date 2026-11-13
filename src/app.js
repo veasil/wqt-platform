@@ -26,6 +26,10 @@ import { registerActivityRoutes } from "./game/activities/routes.js";
 import { registerDownloadRoutes } from "./platform/downloads/routes.js";
 import { registerPlayerRoutes } from "./game/player/routes.js";
 import {aliyunCaptchaCsp} from './services/captcha-config.js';
+import { teamTokenBoundary } from './platform/team-apps/tokens.js';
+import { registerTeamAppRoutes } from './platform/team-apps/routes.js';
+
+morgan.token('safe-path', req => req.path);
 
 export function createApp({
   runtimeConfig = defaultConfig,
@@ -107,7 +111,10 @@ export function createApp({
     }),
   );
 
-  app.use(morgan("dev"));
+  // Authorize URLs carry code/state/PKCE parameters; never include queries in logs.
+  app.use(morgan(':method :safe-path :status :response-time ms', {
+    stream: { write: message => console.log(message.trim()) },
+  }));
   // 复盘报告内嵌大量 base64 图片（卡面/插画/品牌 banner），单独放宽该路由的 body 上限；
   // 其余接口仍走 2mb 全局限制（此中间件先于全局解析，express.json 解析后会 skip 重复解析）。
   app.use("/api/upload/report", express.json({ limit: "16mb" }));
@@ -121,6 +128,8 @@ export function createApp({
     }),
   );
 
+  app.use(teamTokenBoundary);
+
   // 静态资源
   app.get('/player/admin-session.html', (req,res) => {
     if(req.hostname!=='scoring.ai5000days.com')return res.sendStatus(404);
@@ -131,6 +140,7 @@ export function createApp({
   });
   app.use("/shared/browser", compression(), express.static(path.join(ROOT_DIR, "shared", "browser")));
   app.use("/player", compression());
+  app.use("/connect", (_req,res,next) => { res.set("Cache-Control", "no-store"); res.set("Referrer-Policy", "no-referrer"); next(); });
   app.use(express.static(path.join(ROOT_DIR, "public")));
 
   // 组织管理前端 SPA
@@ -161,7 +171,10 @@ export function createApp({
   registerMediaRoutes(app, { config, ossClient, upload });
   registerActivityRoutes(app);
   registerDownloadRoutes(app,{ossClient,upload});
-  if(accountModelEnabled()) registerPlayerRoutes(app, { ossClient });
+  if(accountModelEnabled()) {
+    registerTeamAppRoutes(app);
+    registerPlayerRoutes(app, { ossClient });
+  }
   registerCardVersionRoutes(app);
 
   if (accountModelEnabled()) app.use(accountAuthRouter);

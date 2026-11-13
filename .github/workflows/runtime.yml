@@ -45,7 +45,11 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Install Node Playwright Chromium for integration tests
+        run: npx playwright install --with-deps chromium
       - run: npm run lint
+      - name: Team application authorization and player state contracts
+        run: node --test tests/team-apps.test.mjs tests/player-state.test.mjs
       - name: Install matching PostgreSQL backup tools
         run: |
           sudo install -d /usr/share/postgresql-common/pgdg
