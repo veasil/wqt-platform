@@ -72,7 +72,21 @@ npm --prefix admin-web run dev
 
 `.env`、密钥、生产数据和 `_migration/` 导出不提交。外部功能尚未配置时，服务启动成功不等于短信、上传和 AI 已可用。
 
+阿里云验证码2.0接入使用独立 `ALIYUN_CAPTCHA_*` 部署配置，不能复用 OSS 密钥；`CAPTCHA_PROVIDER` 未设置时保留腾讯。中国内地配置、场景形态、受控凭据交接及上线验证顺序见[阿里云验证码配置](aliyun-captcha-setup.md)。新版生产已运行c466f02，实际镜像、配置及验证证据见[生产切换记录](../changes/WQT-009-hk-first-release/aliyun-captcha-release-20261027.md)；后续工作稿不自动代表线上状态。
+
+本机受控玩家UAT默认使用隔离环境，不继承`.env`全部变量。需要真实短信时，为 `tests/manual/player-uat.mjs` 或保留已有数据的 `tests/manual/resume-player-uat.mjs` 显式增加 `--live-sms`，仅白名单载入Bmob两项配置；腾讯人机验证使用独立 `--live-captcha`。恢复已有库必须指定owned数据库并使用resume入口，不能用会在退出时清理资源的新建入口。`/api/auth/verification-options` 的 `smsMode` 表示live/mock/unavailable，仅说明服务配置，不代表手机收件或供应商额度已验证。参见[登录与视觉修订](../changes/WQT-006-account-permissions/login-visual-followup-20261016.md)。
+
+## 新版题面朗读（WQT-011）
+
+正式场次 `POST /api/player/narration/:sessionId/:cardId` 使用服务端场次发布快照，实时校验访问范围，不接受客户端文本。配置 `VOLC_TTS_API_KEY`（火山语音新版控制台），或旧版语音控制台的 `VOLC_TTS_APP_ID` + `VOLC_TTS_ACCESS_KEY`；Ark 凭据不用于此接口。默认 `VOLC_TTS_SPEAKER=zh_male_shaonianzixin_moon_bigtts`、`VOLC_TTS_RESOURCE_ID=seed-tts-1.0`、`VOLC_TTS_SPEECH_RATE=-5`，配置见 `.env.example`。凭据仅从服务端环境读取，尚无管理端编辑入口；不提交真实密钥。
+
+要求已配置 OSS。音频以文本、音色、模型资源、语速等的 SHA-256 放入独立私有 `cards-narration/v1/` 前缀；不同题面或音色不会复用旧版本。通过同源认证接口返回 MP3，前端使用 blob 播放；正式场次不自动降级成设备声音。并发生成使用主库事务级 PG advisory lock 防止同内容跨实例重复调用；每实例最多 4 个处理中内容。其他实例持锁时返回 429，不排队。供应商不自动重试，允许手动重试。若供应商成功但 OSS 写入失败，重试可能再次计费；不声称跨外部服务 exactly-once。
+
+隔离回归：`node --test tests/runtime/card-narration.test.mjs tests/frontend/narration.test.mjs`；浏览器 UI 回归：`node --test tests/frontend/narration-browser.test.mjs`（需本机 Playwright 浏览器）。已配置语音凭据且能访问外网时，用 `node --env-file=.env scripts/verify-card-narration.mjs --live` 做一次固定短文本的计费合成探测；默认不接受缺少 `--live` 的调用，不输出密钥、不写业务库。真实音色还需手机播放试听，桩测试不代替该验收。实施证据见 [WQT-011](../changes/WQT-011-player-narration/change.md)。
+
 ## 自动验证
+
+Windows 受限执行环境中，若 Playwright 浏览器已安装但下载测试报 `download.path: canceled`，先把**当前测试进程**的 TEMP/TMP 指向仓库内可写的临时目录，再保留原下载断言重跑。示例：创建 `./tmp/narration-test-temp`，将 `$env:TEMP=(Resolve-Path ./tmp/narration-test-temp).Path; $env:TMP=$env:TEMP`，并将 PLAYWRIGHT_BROWSERS_PATH 指向实际已安装的浏览器目录。无需更改系统全局临时目录或业务下载功能。复现结果见 [WQT-011](../changes/WQT-011-player-narration/change.md)。
 
 `npm run lint` 检查模块入口与新提取代码的未定义变量；`npm run test:runtime` 覆盖导入副作用、路由顺序、运行生命周期与租户边界。PG 用例必须显式提供 `WQT_TEST_PG_ADMIN_URL`，它指向专用测试 PostgreSQL 实例中的管理员库，并具有创建/删除临时库权限。
 

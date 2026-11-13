@@ -72,6 +72,35 @@ test("a fully specified production environment passes startup validation", () =>
   assertAccepted(() => validateStartupEnvironment(validEnvironment()));
 });
 
+test("enabled captcha requires every runtime credential before database initialization", () => {
+  const captcha = {
+    CAPTCHA_ENABLED: "true",
+    CAPTCHA_APP_ID: "123",
+    CAPTCHA_APP_SECRET_KEY: "synthetic-app-secret",
+    TENCENT_SECRET_ID: "synthetic-id",
+    TENCENT_SECRET_KEY: "synthetic-api-secret",
+  };
+  assertAccepted(() => validateStartupEnvironment(validEnvironment(captcha)));
+  for (const key of Object.keys(captcha).filter(key => key !== "CAPTCHA_ENABLED")) {
+    for (const missing of [undefined, "", "   "]) {
+      assertRejected(() => validateStartupEnvironment(validEnvironment({ ...captcha, [key]: missing })), key);
+    }
+  }
+});
+
+test('Aliyun captcha requires dedicated credentials, valid region and public identifiers',()=>{
+  const captcha={CAPTCHA_ENABLED:'true',CAPTCHA_PROVIDER:'aliyun',ALIYUN_CAPTCHA_REGION:'cn',
+    ALIYUN_CAPTCHA_PREFIX:'synthetic-prefix',ALIYUN_CAPTCHA_SCENE_ID:'synthetic-scene',
+    ALIYUN_CAPTCHA_ACCESS_KEY_ID:'synthetic-id',ALIYUN_CAPTCHA_ACCESS_KEY_SECRET:'synthetic-secret'};
+  assertAccepted(()=>validateStartupEnvironment(validEnvironment(captcha)));
+  assertAccepted(()=>validateStartupEnvironment(validEnvironment({...captcha,ALIYUN_CAPTCHA_REGION:'sgp'})));
+  for(const key of Object.keys(captcha).filter(k=>k.startsWith('ALIYUN_CAPTCHA_')))
+    for(const missing of [undefined,'','   '])
+      assertRejected(()=>validateStartupEnvironment(validEnvironment({...captcha,[key]:missing})),key);
+  for(const [key,value] of [['ALIYUN_CAPTCHA_REGION','hk'],['ALIYUN_CAPTCHA_PREFIX','invalid.example/path'],['ALIYUN_CAPTCHA_SCENE_ID','<invalid>'],['CAPTCHA_PROVIDER','unknown']])
+    assertRejected(()=>validateStartupEnvironment(validEnvironment({...captcha,[key]:value})),key);
+});
+
 test("staging requires endpoint and bucket identity to match the expected deployment", () => {
   const staging = validEnvironment({
     SERVER_ENV: "staging",

@@ -1,3 +1,4 @@
+import {isDownloadCenterObject} from '../../platform/downloads/routes.js';
 import { sessionEndpoint } from "../../game/sessions/routes.js";
 import { dbGet } from "../../db.js";
 import { authMiddleware } from "../../middleware/auth.js";
@@ -10,10 +11,17 @@ import {
 } from "../../services/image-generation.js";
 import { accessibleSession } from "../../platform/access/session-scope.js";
 import { createSessionFile, getSessionFile } from "./session-files.js";
+import { accountActor } from "../../platform/accounts/context.js";
+import {selectLlmDefaults} from '../../services/llm-selection.js';
 
 export function registerMediaRoutes(app, { config, ossClient, upload } = {}) {
-  const writableSession = async (userId, sessionId) =>
-    sessionId && accessibleSession(userId, sessionId, { write: true });
+  const writableSession = async (userId, sessionId) => {
+    if (typeof userId === 'object') {
+      const actor=await accountActor(userId);
+      if (!actor || !actor.paid_valid) return null;
+    }
+    return sessionId && accessibleSession(userId, sessionId, { write: true });
+  };
   // ======== API: LLM proxy（可选） ========
   // 你原 index.html 里把 Key 写死在前端了（非常危险），这里提供一个安全的后端代理。
   app.post(
@@ -21,7 +29,7 @@ export function registerMediaRoutes(app, { config, ossClient, upload } = {}) {
     authMiddleware,
     sessionEndpoint(async (req, res) => {
       const sessionId = req.body?.sessionId;
-      if (!(await writableSession(req.user.uid, sessionId)))
+      if (!(await writableSession((req.actor || req.user.uid), sessionId)))
         return res.status(404).json({ error: "会话不存在或无权访问" });
       const prompt = req.body?.prompt;
       if (!prompt) return res.status(400).json({ error: "缺少 prompt" });
@@ -53,8 +61,7 @@ export function registerMediaRoutes(app, { config, ossClient, upload } = {}) {
         }
 
         // 后备方案机制
-        provider = provider || "OpenAI";
-        model = model || "gpt-4o-mini";
+        ({provider,model}=selectLlmDefaults({provider,model}));
 
         let apiKey = "";
         let baseUrl = "";
@@ -185,7 +192,7 @@ export function registerMediaRoutes(app, { config, ossClient, upload } = {}) {
         }
 
         const elapsedMs = Date.now() - start_time;
-        if (!(await writableSession(req.user.uid, sessionId)))
+        if (!(await writableSession((req.actor || req.user.uid), sessionId)))
           return res.status(404).json({ error: "会话不存在或无权访问" });
         // 返回带上耗时统计
         res.json({
@@ -208,7 +215,7 @@ export function registerMediaRoutes(app, { config, ossClient, upload } = {}) {
     upload.single("image"),
     sessionEndpoint(async (req, res) => {
       const sessionId = req.body?.sessionId;
-      if (!(await writableSession(req.user.uid, sessionId)))
+      if (!(await writableSession((req.actor || req.user.uid), sessionId)))
         return res.status(404).json({ error: "会话不存在或无权访问" });
       const prompt = (req.body?.prompt || "").toString().trim();
       if (!prompt) return res.status(400).json({ error: "缺少 prompt" });
@@ -274,7 +281,7 @@ export function registerMediaRoutes(app, { config, ossClient, upload } = {}) {
             body: req.body,
             timeoutMs: Number(req.body?.timeoutMs) || 120000,
           });
-          if (!(await writableSession(req.user.uid, sessionId)))
+          if (!(await writableSession((req.actor || req.user.uid), sessionId)))
             return res.status(404).json({ error: "会话不存在或无权访问" });
           return res.json(result);
         }
@@ -298,7 +305,7 @@ export function registerMediaRoutes(app, { config, ossClient, upload } = {}) {
           prompt,
           size,
         });
-        if (!(await writableSession(req.user.uid, sessionId)))
+        if (!(await writableSession((req.actor || req.user.uid), sessionId)))
           return res.status(404).json({ error: "会话不存在或无权访问" });
         res.json(result);
       } catch (e) {
@@ -319,12 +326,12 @@ export function registerMediaRoutes(app, { config, ossClient, upload } = {}) {
         return res.status(500).json({ error: "服务器未配置 OSS" });
       if (!req.file) return res.status(400).json({ error: "未上传文件" });
       const sessionId = req.body?.sessionId;
-      if (!(await writableSession(req.user.uid, sessionId)))
+      if (!(await writableSession((req.actor || req.user.uid), sessionId)))
         return res.status(404).json({ error: "会话不存在或无权访问" });
 
       try {
         const file = await createSessionFile({
-          userId: req.user.uid,
+          userId: (req.actor || req.user.uid),
           sessionId,
           filename: req.file.originalname || `audio-${Date.now()}.webm`,
           mediaType: [
@@ -357,7 +364,7 @@ export function registerMediaRoutes(app, { config, ossClient, upload } = {}) {
       const { html, markdown, sessionId } = req.body || {};
       if (!html && !markdown)
         return res.status(400).json({ error: "缺少报告内容" });
-      if (!(await writableSession(req.user.uid, sessionId)))
+      if (!(await writableSession((req.actor || req.user.uid), sessionId)))
         return res.status(404).json({ error: "会话不存在或无权访问" });
 
       try {
@@ -365,7 +372,7 @@ export function registerMediaRoutes(app, { config, ossClient, upload } = {}) {
 
         if (html) {
           const file = await createSessionFile({
-            userId: req.user.uid,
+            userId: (req.actor || req.user.uid),
             sessionId,
             filename: `report-${Date.now()}.html`,
             mediaType: "text/html",
@@ -378,7 +385,7 @@ export function registerMediaRoutes(app, { config, ossClient, upload } = {}) {
 
         if (markdown) {
           const file = await createSessionFile({
-            userId: req.user.uid,
+            userId: (req.actor || req.user.uid),
             sessionId,
             filename: `report-${Date.now()}.md`,
             mediaType: "text/markdown",
@@ -456,7 +463,7 @@ export function registerMediaRoutes(app, { config, ossClient, upload } = {}) {
 
       const { filename } = req.body; // Expect JSON body: { "filename": "path/to/file" }
       if (!filename) return res.status(400).json({ error: "未指定文件名" });
-      if (String(filename).startsWith("session-files/"))
+      if (String(filename).startsWith("session-files/") || isDownloadCenterObject(String(filename)) || await dbGet("SELECT id FROM download_releases WHERE object_key=?",[String(filename)]))
         return res
           .status(409)
           .json({ error: "私有场次文件需按独立数据保留流程处理" });
@@ -480,11 +487,11 @@ export function registerMediaRoutes(app, { config, ossClient, upload } = {}) {
     sessionEndpoint(async (req, res) => {
       if (!ossClient)
         return res.status(500).json({ error: "服务器未配置 OSS" });
-      const file = await getSessionFile(req.user.uid, req.params.id);
+      const file = await getSessionFile((req.actor || req.user.uid), req.params.id);
       if (!file) return res.status(404).json({ error: "文件不存在" });
       try {
         const result = await ossClient.get(file.object_key);
-        if (!(await getSessionFile(req.user.uid, req.params.id)))
+        if (!(await getSessionFile((req.actor || req.user.uid), req.params.id)))
           return res.status(404).json({ error: "文件不存在" });
         res.set({
           "Content-Type": file.media_type || "application/octet-stream",

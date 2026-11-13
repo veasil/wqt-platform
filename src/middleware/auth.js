@@ -3,6 +3,8 @@ import { config } from "../config.js";
 import { isSessionValid, touchSession } from "../services/sessions.js";
 import { resolveValidity } from "../account.js";
 import { dbGet } from "../db.js";
+import { accountModelEnabled } from "../platform/accounts/model.js";
+import { authenticateAccount } from "../platform/accounts/auth.js";
 
 // JWT 签发：7 天有效，携带 role / enterpriseId / jti(单设备会话) / env(环境标记)
 export function signToken(user) {
@@ -30,6 +32,7 @@ export function signToken(user) {
  *   4. 会员有效期：账号/组织未到期、未停用（ORG_EXPIRED / ACCOUNT_EXPIRED / ...）
  */
 export async function authMiddleware(req, res, next) {
+  if (accountModelEnabled()) return authenticateAccount(req,res,next);
   const SERVER_ENV = config.SERVER_ENV || "prod";
   const JWT_SECRET = config.JWT_SECRET || "dev_secret_change_me";
   const auth = req.headers.authorization || "";

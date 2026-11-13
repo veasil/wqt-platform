@@ -1,7 +1,8 @@
 import pg from "pg";
+import {captchaConfigurationError} from './services/captcha-config.js';
 import { decryptVal } from "./config.js";
 
-const protectedKeys = new Set([
+export const protectedKeys = new Set([
   "NODE_ENV",
   "SERVER_ENV",
   "JWT_SECRET",
@@ -14,6 +15,9 @@ const protectedKeys = new Set([
   "DEV_LOGIN_KEY",
   "TEST_LOGIN_CODE",
   "TEST_LOGIN_PHONES",
+  "WQT_ACCOUNT_MODEL",
+  "REDIS_URL",
+  "WQT_REDIS_NAMESPACE",
 ]);
 const externalKey =
   /^(BMOB_|OSS_|ALIBABA_|ALIYUN_|OPENAI_|DEEPSEEK_|GEMINI_|DASHSCOPE_|VOLCENGINE_|TENCENT_|CAPTCHA_)/;
@@ -57,8 +61,13 @@ function databaseTarget(env, key, hostKey, nameKey) {
 }
 
 export function validateStartupEnvironment(env = process.env) {
+  if (env.WQT_ACCOUNT_MODEL && !['accounts','legacy'].includes(env.WQT_ACCOUNT_MODEL)) fail('WQT_ACCOUNT_MODEL');
   if (isolated(env)) return;
   if (env.NODE_ENV !== "production") fail("NODE_ENV");
+  if (String(env.CAPTCHA_ENABLED || "").toLowerCase() === "true") {
+    const field = captchaConfigurationError(env);
+    if (field) fail(field);
+  }
   if (!["staging", "prod"].includes(env.SERVER_ENV)) fail("SERVER_ENV");
   if (
     !present(env.JWT_SECRET) ||

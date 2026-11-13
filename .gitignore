@@ -48,3 +48,15 @@ video/
 
 # 复盘报告生成样张（产物，按需本地查看）
 复盘报告样张.html
+
+# Local scratch, exports and credentials (retain locally; never publish)
+/tmp/
+/output/
+/_tmp*
+.env.*
+!.env.example
+*.private.*
+*.pem
+*.key
+# Local Word exports; versioned Markdown remains the handoff source.
+/docs/*.docx

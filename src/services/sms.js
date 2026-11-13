@@ -4,6 +4,10 @@ import { config } from "../config.js";
 // Bmob 短信客户端：惰性初始化（在 loadConfig() 之后调用 initSms()）。
 // 未配置 Bmob 时为 null，走开发环境的内存模拟验证码（mockCode）。
 export let bmobSMS = null;
+// Public capability, not a delivery/credit/recipient receipt. Never expose provider credentials.
+export function smsMode() {
+  return bmobSMS ? 'live' : mockAllowed() ? 'mock' : 'unavailable';
+}
 export function initSms() {
   if (!mockAllowed() && (!config.BMOB_APP_ID || !config.BMOB_REST_KEY)) throw new Error("SMS configuration required outside development/test");
   startQuotaCleanup();
@@ -61,7 +65,7 @@ export function checkSendQuota(phone, ip) {
   // 1) 同手机号 60s 重发间隔
   if (pq && SMS_RESEND_INTERVAL_MS > 0 && now - pq.lastSent < SMS_RESEND_INTERVAL_MS) {
     const waitSec = Math.ceil((SMS_RESEND_INTERVAL_MS - (now - pq.lastSent)) / 1000);
-    return { ok: false, status: 429, error: `请等待 ${waitSec} 秒后重试` };
+    return { ok: false, status: 429, retryAfterSeconds: waitSec, error: `请等待 ${waitSec} 秒后重试` };
   }
   // 2) 同手机号当日上限
   if (pq && SMS_DAILY_LIMIT > 0 && now - pq.windowStart < DAY_MS && pq.count >= SMS_DAILY_LIMIT) {

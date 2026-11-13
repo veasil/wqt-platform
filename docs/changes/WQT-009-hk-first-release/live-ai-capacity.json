@@ -1,0 +1,18 @@
+{
+  "requests": 10,
+  "statuses": [
+    200,
+    200,
+    429,
+    200,
+    429,
+    429,
+    429,
+    429,
+    429,
+    200
+  ],
+  "coreReadDuringAI_ms": 154,
+  "coreReadStatus": 200,
+  "rateLimitExpected": true
+}

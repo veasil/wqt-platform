@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-17",
+  "release": "8edaeb7",
+  "concurrentTables": 10,
+  "startMs": [
+    333,
+    325,
+    319,
+    302,
+    315,
+    311,
+    355,
+    306,
+    324,
+    314
+  ],
+  "completedGames": 10,
+  "crossOrganizationDenied": true,
+  "anonymousAdminDenied": true,
+  "nonBossAdminDenied": true,
+  "duplicateStartSameId": true,
+  "devLoginClosed": true,
+  "defaultGroupId": 5
+}

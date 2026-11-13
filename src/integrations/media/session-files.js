@@ -38,11 +38,13 @@ export async function createSessionFile({
       if (!locked)
         throw Object.assign(new Error("会话不可访问"), { status: 404 });
       await tx.run(
-        "INSERT INTO session_files(id, session_id, user_id, object_key, filename, media_type, size, created_at) VALUES(?,?,?,?,?,?,?,?)",
+        typeof userId === 'object'
+          ? "INSERT INTO session_files(id, session_id, uploaded_by_identity_id, object_key, filename, media_type, size, created_at) VALUES(?,?,?,?,?,?,?,?)"
+          : "INSERT INTO session_files(id, session_id, user_id, object_key, filename, media_type, size, created_at) VALUES(?,?,?,?,?,?,?,?)",
         [
           id,
           sessionId,
-          userId,
+          typeof userId === 'object' ? userId.identityId : userId,
           objectKey,
           filename,
           mediaType,
@@ -72,12 +74,13 @@ export async function listSessionFiles(userId) {
   const actor = await currentActor(userId);
   const scope = sessionScope(actor, "s", { managed: true });
   const rows = await dbAll(
-    `SELECT sf.id, sf.filename, sf.media_type, sf.size, sf.created_at
+    `SELECT sf.id, sf.session_id, sf.filename, sf.media_type, sf.size, sf.created_at
      FROM session_files sf JOIN game_sessions s ON s.id = sf.session_id
      WHERE ${scope.sql} ORDER BY sf.created_at DESC`,
     scope.params,
   );
   return rows.map((row) => ({
+    sessionId: row.session_id,
     name: row.filename,
     type: row.media_type?.startsWith("audio/")
       ? "audio"

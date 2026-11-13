@@ -191,6 +191,14 @@
             return await response.json();
         }
 
+        const identityMode = JSON.parse(localStorage.getItem('WQT_USER_CACHE') || '{}').identityId != null;
+        if (identityMode) {
+            for (const id of ['password', 'confirm-password']) {
+                const input = document.getElementById(id);
+                input.required = false;
+                input.closest('.form-group').style.display = 'none';
+            }
+        }
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             errorMessage.textContent = '';
@@ -203,8 +211,8 @@
             if (!realName) { errorMessage.textContent = '请输入真实姓名'; return; }
             if (!guardianName) { errorMessage.textContent = '请输入守望师名'; return; }
             if (guardianName.length > 20) { errorMessage.textContent = '守望师名不超过20个字符'; return; }
-            if (password.length < 6) { errorMessage.textContent = '密码至少需要6位'; return; }
-            if (password !== confirmPassword) { errorMessage.textContent = '两次密码输入不一致'; return; }
+            if (!identityMode && password.length < 6) { errorMessage.textContent = '密码至少需要6位'; return; }
+            if (!identityMode && password !== confirmPassword) { errorMessage.textContent = '两次密码输入不一致'; return; }
 
             submitBtn.disabled = true;
             submitBtn.textContent = '设置中...';
@@ -212,7 +220,7 @@
             try {
                 const result = await api('api/auth/complete-profile', {
                     method: 'POST',
-                    body: { guardianName, realName, password }
+                    body: { guardianName, realName, ...(!identityMode ? { password } : {}) }
                 });
 
                 localStorage.setItem('WQT_USER_INFO', JSON.stringify(result.user));

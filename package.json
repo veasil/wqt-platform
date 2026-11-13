@@ -13,14 +13,17 @@
     "check:artifacts": "node scripts/artifacts/check.mjs",
     "test:artifacts": "node --test tests/artifacts.test.mjs",
     "test:runtime": "node --test tests/runtime/*.test.mjs",
-    "lint": "eslint src/app.js src/runtime.js src/startup-guards.js src/development src/platform src/game src/integrations"
+    "test:frontend": "node --test tests/frontend/*.test.mjs",
+    "lint": "eslint src/app.js src/runtime.js src/startup-guards.js src/db.js src/db/migrations src/development src/middleware src/services src/platform src/game src/integrations"
   },
   "allowScripts": {
     "sqlite3@5.1.7": true
   },
   "dependencies": {
+    "@alicloud/captcha20230305": "1.1.4",
     "ali-oss": "^6.23.0",
     "bcryptjs": "^2.4.3",
+    "compression": "1.8.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
@@ -30,9 +33,11 @@
     "multer": "^2.0.2",
     "node-fetch": "^3.3.2",
     "pg": "^8.21.0",
+    "redis": "^6.3.0",
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {
-    "eslint": "9.39.1"
+    "eslint": "9.39.1",
+    "playwright": "^1.64.0"
   }
 }

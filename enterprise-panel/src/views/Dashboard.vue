@@ -8,7 +8,7 @@
       <el-tag :type="badge.type" size="large">{{ badge.text }}</el-tag>
       <el-tag type="info" effect="plain">成员 {{ org.currentMembers }} / {{ org.maxMembers }}</el-tag>
       <span v-if="badge.days != null && badge.days >= 0 && badge.days <= 7" style="color:#e6a23c">
-        ⚠ 会员将于 {{ badge.days }} 天后到期，请联系平台客服续费，到期后全体成员将无法登录。
+        ⚠ 会员将于 {{ badge.days }} 天后到期，请联系平台客服续费；到期后保留登录与历史查看，无法新开局。
       </span>
     </el-card>
 

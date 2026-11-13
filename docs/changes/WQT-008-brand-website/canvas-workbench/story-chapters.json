@@ -1,0 +1,122 @@
+[
+  {
+    "id": "01-era",
+    "title": "AI 的时代，也是儿童成长的时代",
+    "lead": "把技术变化放回真实生活。",
+    "body": "生成式 AI、平台算法、智能终端与数字内容正在进入儿童生活。儿童不仅使用技术，也受到产品设计和数字社会规则的影响。伍仟天以儿童成长为观察起点，回应技术转型、成长关键期和陪伴有效期的交汇。",
+    "bridge": "当技术成为成长环境，风险就不能只被看作一条内容提示。",
+    "source": "S1 官方介绍；S2 公司三折页",
+    "status": "品牌定位与时代问题",
+    "scene": "A mature editorial 3D illustration of two East Asian school-age children walking with a parent through a real neighborhood where a school, home and modest workplace coexist. Translucent cobalt interface planes, subtle flowing dotted ribbons and a few small glass nodes connect daily places. Technology is embedded in society rather than looming over it. Children look outward with curiosity and agency. Calm three-quarter eye-level composition, human-scale urban setting, no futuristic megacity."
+  },
+  {
+    "id": "02-risks",
+    "title": "风险命题：谁在塑造儿童的数字生活？",
+    "lead": "看见风险，也看见它背后的机制。",
+    "body": "身体、心理、社交、经济和数字权益，是儿童数智成长需要回应的五类风险。风险发生在设备、算法、内容与相关方的交互中；只告诉孩子“不能看”，并不能替代对机制、后果与应对方式的理解。",
+    "bridge": "从识别风险走向主动判断，需要可以练习的能力。",
+    "source": "S1 桌游与 RASPE 介绍；S2 风险与四大切面",
+    "status": "领域问题，不给风险伪造发生率",
+    "scene": "Two school-age children and a supportive adult thoughtfully examine a tabletop arrangement of five separate translucent blue digital objects: device with a rest-time clock, calm emotion dialogue card, respectful message bubbles, a small wallet with coin, and a privacy lock card. One child actively points to a choice while the adult listens. Small muted warm amber caution markers, no red alarm overload, no frightening imagery, no surveillance eye, no chain trapping a child. Show calm analysis of everyday digital risks, not helplessness."
+  },
+  {
+    "id": "03-literacy",
+    "title": "素养提升：把一次选择变成判断的练习",
+    "lead": "风险预演 → 能力激活 → 免疫形成。",
+    "body": "孩子在安全、支持性的场景中看见风险、理解机制、练习选择、感受后果、建立边界。通过风险再现、安全预演、真实决策、结果反馈与修复行动，将一次体验转化为主动判断的练习。五力承载不同能力，不与五类风险机械对应。",
+    "bridge": "活动中的练习，需要进入家庭与日常生活。",
+    "source": "S5 计划全文 rev142；S7 志愿者话术 rev78",
+    "status": "现有教育方法与能力表达",
+    "scene": "Two children at a blue-and-white tabletop learning game with an adult facilitator. A child carefully chooses a card, another explains a reason with an open hand, and the facilitator listens rather than lectures. Five modest abstract ability tokens are on the table, all distinct but without labels or connecting them to risk objects. Cards have only simple blank geometric motifs. Clear narrative about deliberation, choice and feedback, richly finished realistic-proportion editorial 3D, no childish toy look."
+  },
+  {
+    "id": "04-family",
+    "title": "家庭陪伴：共同理解，持续练习",
+    "lead": "让数智素养进入真实的陪伴过程。",
+    "body": "家庭版桌游把教育体验延伸到日常。家长与孩子通过角色代入、情境讨论和轻松互动理解彼此，共同建立家庭数字使用规则。成长支持关注日常练习、AI创作与陪伴，让孩子的真实想法进入家庭选择。",
+    "bridge": "家庭的努力，还需要学校、社区和技术环境共同支持。",
+    "source": "S5 计划全文；S7 家庭桌游与成长支持说明",
+    "status": "家庭支持方向；二级产品仍在开发测试",
+    "scene": "A warm contemporary family living room: an East Asian parent and a 10-year-old child sit side by side at a wooden-and-white table, jointly discussing a tablet and a few game cards. Another adult listens nearby, all at equal conversational height. A small familiar white-and-blue companion robot with rounded white head, dark blue face display and cyan curved smiling eyes and cyan heart chest sits quietly at the side, not replacing the parent. A real window, plant and subtle cobalt glass accents, warm gold daylight; mature gentle proportions, not chibi."
+  },
+  {
+    "id": "05-cocreation",
+    "title": "多方共建：让不同角色围绕儿童协作",
+    "lead": "家庭、学校、社区、企业与公共机构。",
+    "body": "儿童不仅是AI的使用者，也是AI发展的参与者。家庭提供真实体验，学校和社区提供持续支持，专业人士理解发展需求，科技企业将儿童的安全、权益与参与前置到产品设计。孩子自己的声音，是协作的组成部分。",
+    "bridge": "协作要有真实问题和证据作为共同起点。",
+    "source": "S6 新版媒体通稿 rev406；S8 倡导说明 rev2",
+    "status": "协作角色，不暗示已签约伙伴",
+    "scene": "An inclusive roundtable with an East Asian child actively presenting a small prototype to five adults representing parent, teacher, community worker, software designer and researcher. Participants in understated blue, white and neutral professional clothing, listening in equal-height positions. Blank paper notes, small transparent cobalt shared model on the table, open hand gestures. No authority figure towering over the child, no organization logos, no formal contract ceremony. Mature refined 3D editorial scene with clean readable spatial arrangement."
+  },
+  {
+    "id": "06-research",
+    "title": "品牌行动 · 调研与研究",
+    "lead": "从儿童的真实体验寻找技术着陆点。",
+    "body": "自2022年以来，项目坚持研究驱动。计划全文记载《中国儿童数字媒介素养报告》、2025年《儿童青少年数智素养测评报告》及2026年《儿童青少年数字风险白皮书》，以一手数据、问题识别工具和行动框架连接教育实践与技术治理。",
+    "bridge": "把观察和理解带入可参与的行动。",
+    "source": "S5 计划全文 rev142，第五节；S7 研究说明",
+    "status": "按项目官方材料记载；报告全文尚未逐篇复核",
+    "scene": "A researcher interviews a child and parent at a calm school or community room. Another researcher takes notes on a clipboard; a small tabletop tablet shows only abstract blank cards, no numerical chart. Eye-level respectful conversation, child holding a drawing or simple choice card to express their own experience. Clean cobalt folders, white table, subtle gold pencil and warm light. Illustrative research scene, not a photograph of real participants, no recognizable institution, no invented sample metrics."
+  },
+  {
+    "id": "07-activities",
+    "title": "品牌行动 · 活动与实践",
+    "lead": "让风险情境成为可以讨论和练习的现场。",
+    "body": "计划已在上海、宁夏等地把桌游与负责任开发者项目带入社区、学校和家庭。2026年WAIC行动设置风险预演、价值访谈、家庭志愿、倡导之声和产品展示五个板块，让儿童体验、家庭意见与行业交流在同一现场发生。",
+    "bridge": "持续实践需要能够被复用和迭代的产品。",
+    "source": "S5 计划全文第六节；S6 新版媒体通稿",
+    "status": "资料记载的实践；插画为场景表达，不冒充现场照片",
+    "scene": "A small school-community workshop with two tables and six participants: children discuss a tabletop game while a facilitator invites an explanation, and adults practice supporting discussion at the adjacent table. Modest room, realistic scale, organized blue-and-white cards and simple teaching props. Engagement and thoughtful interaction, no giant cheering crowd, no stage, no event signage, no readable poster, no fabricated attendance claim. Balanced detailed mature editorial 3D composition."
+  },
+  {
+    "id": "08-products",
+    "title": "品牌行动 · 产品与工具",
+    "lead": "教育支持、成长支持、技术治理。",
+    "body": "三级产品形成递进关系：教育支持让孩子看见风险，成长支持让练习进入日常，技术治理推动环境更加友好。桌游、开发者营与守望者培训已进入市场化；家庭桌游、AI Tutor、RASPE和测评系统仍在开发测试。",
+    "bridge": "产品还需要与真实开发和行业改进相连接。",
+    "source": "S5 计划全文三级产品；S7 商务落地与产品状态",
+    "status": "一级市场化；二、三级开发测试，不推定已全面集成",
+    "scene": "A coherent tabletop product ecosystem illustration in three connected but independent clusters: tactile blank game cards and a compact board; a family tablet and small rounded white-blue companion robot; a researcher laptop with abstract review cards and checklist. A child and adult discuss the first cluster while a designer examines the third. No product packaging labels, logos, scores, stars, seals, charts or unreadable fake typography. Show complementary tools rather than claim all systems are technically integrated. Restrained cobalt glass linking accents."
+  },
+  {
+    "id": "09-industry",
+    "title": "品牌行动 · 行业与技术共治",
+    "lead": "不仅让儿童适应技术，也推动技术更适合儿童。",
+    "body": "儿童友好 AI 产品判断同时关注安全风险、成长发展与协同治理。通过可衡量、可举证、可复核、可改进的方向，与产品企业和专业机构讨论真实的设计与治理问题。",
+    "bridge": "负责任的产品环境，也需要负责任的创造者。",
+    "source": "S1 产品测评系统；S2 技术治理栏目",
+    "status": "治理方向；测评系统来源标注开发测试中",
+    "scene": "Three professional product designers and a child-experience researcher review an AI interface prototype at a clean studio table. A child-feedback card, privacy settings card and accessibility control model are considered together. Blue transparent panels with simple non-text geometry, a laptop and blank printed checklist. Evidence-driven respectful product review, no award trophy, certificate, ratings or regulatory seal, no surveillance room. Mature understated polished 3D editorial visual."
+  },
+  {
+    "id": "10-cultivation",
+    "title": "品牌行动 · 培育负责任的行动者",
+    "lead": "从技术使用者走向有判断力的创造者。",
+    "body": "负责任开发者营将儿童友好、安全意识和用户责任融入问题识别、方案设计与原型实践。守望者培训面向家长、教师、社区工作者、志愿者及企业人员，支持本地力量运用工具开展教育与陪伴。",
+    "bridge": "把实践中的经验变成更多人能够理解和参与的公共表达。",
+    "source": "S5 计划全文第六节；S7 开发者营与守望者说明",
+    "status": "计划材料记载上海已培育近50位守望者；口径截至该材料版本",
+    "scene": "Two early-teen students build a modest helpful prototype at a maker table with a mentor. One student sketches a solution, the other tests a small device or laptop prototype, and the mentor asks a question with an open gesture. A privacy checklist and safety boundary token are part of the working materials, no readable code or text. Realistic teenage proportions, thoughtful concentration, not small cartoon toddlers, no graduation trophies. Blue-white studio with a small gold lamp, mature refined editorial 3D."
+  },
+  {
+    "id": "11-communication",
+    "title": "品牌行动 · 倡导与传播",
+    "lead": "让儿童友好成为 AI 产品的真“芯”。",
+    "body": "儿童代表、家长、守望者、教师、专家与科技企业共同发声。倡导短视频、儿童绘画、海报、公众号及现场交流，把家庭体验和儿童需求带入公共讨论，让儿童友好进入产品设计、开发、运营与迭代。",
+    "bridge": "共同的理解与持续行动，连接未来的成长生态。",
+    "source": "S8 倡导ID说明 rev2；S6 新版媒体通稿",
+    "status": "倡导机制与资料记载的行动，不把合作意向写成已签约成果",
+    "scene": "A small public discussion and educational communication setting: a young participant shares a drawing while a researcher and educator listen; a family looks at a thoughtfully designed exhibition panel made of blank blue-white cards. A few refined poster, booklet and dialogue objects form the composition, all without words or logos. Show knowledge being shared and voices being heard, no celebrity speaker, no fake news headlines, no media logos, no huge crowd. Gold light used sparingly to connect the people."
+  },
+  {
+    "id": "12-ecosystem",
+    "title": "未来生态：让支持围绕成长持续发生",
+    "lead": "从单点倡导走向系统实践。",
+    "body": "连接家庭、学校、社区、企业、专业机构与公共治理力量，让教育体验、日常陪伴、负责任创新和技术改进相互支持。这是品牌面向未来的生态愿景，不等于现有系统已经实现全部集成或覆盖。",
+    "bridge": "科技向善的价值，最终回到儿童真实的成长。",
+    "source": "S1 公司愿景与核心实践项目；本次用户明确未来生态",
+    "status": "未来愿景，与当前业务事实分开",
+    "scene": "A human-centered future neighborhood ecosystem at a restrained three-quarter camera angle: family home, school-community learning space, maker studio and product research space arranged around an open shared courtyard. Children and adults walk between the spaces; small dotted cobalt light ribbons connect them gently with a few blue glass nodes and gold accents. Buildings remain believable and human-scale, no giant sci-fi city, no globe, no data dashboard, no words or logos. The child and daily life are central; technology is supportive infrastructure. Mature unified editorial 3D panorama."
+  }
+]

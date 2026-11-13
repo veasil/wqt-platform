@@ -1,0 +1,18 @@
+// Continuous whole-frame light field, with no nearest-edge switching.
+export function attachReflections(host) {
+const svg=host.querySelector('.facet-frame'),outline=svg.querySelector('.frame-outline'),ns='http://www.w3.org/2000/svg';
+const reduced=matchMedia('(prefers-reduced-motion: reduce)'),fine=matchMedia('(hover: hover) and (pointer: fine)');
+const gradient=document.createElementNS(ns,'linearGradient');gradient.id='pointer-reflection';gradient.setAttribute('gradientUnits','userSpaceOnUse');
+gradient.innerHTML='<stop stop-color="#6897c2" stop-opacity=".15"/><stop offset=".22" stop-color="#b6eaff" stop-opacity=".35"/><stop offset=".36" stop-color="#fff"/><stop offset=".46" stop-color="#91c7e3" stop-opacity=".2"/><stop offset=".66" stop-color="#abd1ef" stop-opacity=".3"/><stop offset=".78" stop-color="#fff"/><stop offset="1" stop-color="#6595b9" stop-opacity=".15"/>';
+svg.querySelector('defs').append(gradient);
+const highlight=document.createElementNS(ns,'path');highlight.classList.add('pointer-edge');highlight.setAttribute('fill','none');highlight.setAttribute('stroke','url(#pointer-reflection)');highlight.setAttribute('stroke-width','3');highlight.setAttribute('vector-effect','non-scaling-stroke');svg.append(highlight);
+const options=()=>host.querySelectorAll('.choice');let queued=0,last=null,angle=25,target=25,previousTime=0;
+function apply(){const w=host.clientWidth,h=host.clientHeight;gradient.setAttribute('x1','0');gradient.setAttribute('y1',h/2);gradient.setAttribute('x2',w);gradient.setAttribute('y2',h/2);gradient.setAttribute('gradientTransform','rotate('+angle+' '+w/2+' '+h/2+')');svg.querySelector('#glass-fill').setAttribute('gradientTransform','rotate('+angle+' .5 .5)');svg.querySelector('#glass-edge').setAttribute('gradientTransform','rotate('+angle+' .5 .5)');host.style.setProperty('--reflection-angle',angle+'deg');}
+function rebuild(){highlight.setAttribute('d',outline.getAttribute('d'));apply();}
+const observer=new MutationObserver(rebuild);observer.observe(outline,{attributes:true,attributeFilter:['d']});rebuild();
+function clear(){if(queued)cancelAnimationFrame(queued);queued=0;last=null;previousTime=0;host.classList.remove('reflecting');options().forEach(o=>o.classList.remove('reflecting'));}
+function paint(time){queued=0;if(!last||reduced.matches||!fine.matches)return;const dt=previousTime?Math.min(32,time-previousTime):16;previousTime=time;angle+=(target-angle)*(1-Math.exp(-dt/90));apply();if(Math.abs(target-angle)>.05)queued=requestAnimationFrame(paint);else previousTime=0;}
+host.addEventListener('pointermove',e=>{if(e.pointerType==='touch'||reduced.matches||!fine.matches)return;last={x:e.clientX,y:e.clientY};const r=host.getBoundingClientRect(),x=Math.max(0,Math.min(1,(last.x-r.left)/r.width)),y=Math.max(0,Math.min(1,(last.y-r.top)/r.height));target=25+(x-.5)*100+(y-.5)*140;host.classList.add('reflecting');options().forEach(o=>{const b=o.getBoundingClientRect();o.classList.toggle('reflecting',o.classList.contains('selected')||(last.x>=b.left&&last.x<=b.right&&last.y>=b.top&&last.y<=b.bottom));});if(!queued)queued=requestAnimationFrame(paint);});
+host.addEventListener('pointerleave',clear);host.addEventListener('pointercancel',clear);window.addEventListener('blur',clear);window.addEventListener('resize',clear);window.addEventListener('scroll',clear,{passive:true});reduced.addEventListener('change',clear);fine.addEventListener('change',clear);
+return ()=>{clear();observer.disconnect();window.removeEventListener('blur',clear);window.removeEventListener('resize',clear);window.removeEventListener('scroll',clear);reduced.removeEventListener('change',clear);fine.removeEventListener('change',clear);};
+}

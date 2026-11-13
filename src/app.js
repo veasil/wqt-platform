@@ -1,4 +1,5 @@
 import express from "express";
+import compression from "compression";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
@@ -9,6 +10,8 @@ import { ROOT_DIR } from "./paths.js";
 import authRouter from "./routes/auth.routes.js";
 import accountAdminRouter from "./routes/account-admin.routes.js";
 import adminDataRouter from "./routes/admin-data.routes.js";
+import accountAuthRouter from "./platform/accounts/auth.routes.js";
+import { accountModelEnabled } from "./platform/accounts/model.js";
 import { registerSettingsRoutes } from "./platform/settings/routes.js";
 import { registerProfileRoutes } from "./platform/identity/profile.routes.js";
 import { registerOrganizationRoutes } from "./platform/organizations/routes.js";
@@ -20,12 +23,17 @@ import {
 import { registerMediaRoutes } from "./integrations/media/routes.js";
 import { registerActivityRoutes } from "./game/activities/routes.js";
 
+import { registerDownloadRoutes } from "./platform/downloads/routes.js";
+import { registerPlayerRoutes } from "./game/player/routes.js";
+import {aliyunCaptchaCsp} from './services/captcha-config.js';
+
 export function createApp({
   runtimeConfig = defaultConfig,
   ossClient = null,
 } = {}) {
   const config = runtimeConfig;
   const app = express();
+  const captchaCsp = aliyunCaptchaCsp();
   const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 50 * 1024 * 1024 },
@@ -53,6 +61,9 @@ export function createApp({
             "'self'",
             "'unsafe-inline'",
             "https://cdn.jsdelivr.net",
+            "https://turing.captcha.qcloud.com",
+            "https://turing.captcha.gtimg.com",
+            ...captchaCsp.scripts,
           ],
           // helmet 默认带 script-src-attr 'none' 会屏蔽所有 onclick=/onsubmit= 等内联事件处理器
           // (index.html/my.html 等大量用到)，显式放开与 script-src 同等放宽，保持现状不破
@@ -61,18 +72,23 @@ export function createApp({
             "'self'",
             "'unsafe-inline'",
             "https://fonts.googleapis.com",
+            ...captchaCsp.styles,
           ],
-          "font-src": ["'self'", "https://fonts.gstatic.com"],
+          "font-src": ["'self'", "https://fonts.gstatic.com", ...captchaCsp.fonts],
           "img-src": [
             "'self'",
             "data:",
+            ...captchaCsp.images,
             "https://ai5000days-scoring-system-hk.oss-cn-hongkong.aliyuncs.com",
           ],
           "media-src": [
             "'self'",
+            "blob:",
             "https://ai5000days-scoring-system-hk.oss-cn-hongkong.aliyuncs.com",
           ],
-          "connect-src": ["'self'"],
+          "connect-src": ["'self'", "https://turing.captcha.qcloud.com", ...captchaCsp.connect],
+          "frame-src": ["'self'", "https://scoring.ai5000days.com", "https://turing.captcha.qcloud.com", "https://turing.captcha.gtimg.com", ...captchaCsp.frames],
+          "worker-src": ["'self'", "blob:"],
           "frame-ancestors": ["'none'"],
           "object-src": ["'none'"],
           "base-uri": ["'self'"],
@@ -106,11 +122,20 @@ export function createApp({
   );
 
   // 静态资源
+  app.get('/player/admin-session.html', (req,res) => {
+    if(req.hostname!=='scoring.ai5000days.com')return res.sendStatus(404);
+    res.removeHeader('X-Frame-Options');
+    res.set('Content-Security-Policy',String(res.get('Content-Security-Policy')).replace("frame-ancestors 'none'","frame-ancestors https://admin.ai5000days.com"));
+    res.set('Cache-Control','no-store');
+    res.sendFile(path.join(ROOT_DIR,'public','player','admin-session.html'));
+  });
+  app.use("/shared/browser", compression(), express.static(path.join(ROOT_DIR, "shared", "browser")));
+  app.use("/player", compression());
   app.use(express.static(path.join(ROOT_DIR, "public")));
 
   // 组织管理前端 SPA
   const enterpriseDist = path.join(ROOT_DIR, "enterprise-panel", "dist");
-  app.use("/enterprise", express.static(enterpriseDist));
+  app.use("/enterprise", compression(), express.static(enterpriseDist));
   app.get("/enterprise/*", (req, res, next) => {
     if (req.path.startsWith("/enterprise/api")) return next();
     res.sendFile(path.join(enterpriseDist, "index.html"), (err) => {
@@ -120,7 +145,7 @@ export function createApp({
 
   // 中台管理前端 SPA（admin-web，替代 Streamlit）
   const adminWebDist = path.join(ROOT_DIR, "admin-web", "dist");
-  app.use("/admin", express.static(adminWebDist));
+  app.use("/admin", compression(), express.static(adminWebDist));
   app.get("/admin/*", (req, res, next) => {
     if (req.path.startsWith("/admin/api")) return next();
     res.sendFile(path.join(adminWebDist, "index.html"), (err) => {
@@ -135,11 +160,16 @@ export function createApp({
   registerCardRoutes(app);
   registerMediaRoutes(app, { config, ossClient, upload });
   registerActivityRoutes(app);
+  registerDownloadRoutes(app,{ossClient,upload});
+  if(accountModelEnabled()) registerPlayerRoutes(app, { ossClient });
   registerCardVersionRoutes(app);
 
+  if (accountModelEnabled()) app.use(accountAuthRouter);
   app.use(authRouter);
-  app.use(accountAdminRouter);
-  app.use(adminDataRouter);
+  if (!accountModelEnabled()) {
+    app.use(accountAdminRouter);
+    app.use(adminDataRouter);
+  }
 
   app.use((error, req, res, next) => {
     if (res.headersSent) return next(error);

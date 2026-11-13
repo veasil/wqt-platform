@@ -74,3 +74,7 @@ node --env-file=.env server.js
 - [工程约束](AGENTS.md)：所有贡献者和编码代理必须遵守的项目规则。
 - [文档索引](docs/README.md)：需求基线、架构、领域知识与历史资料。
 - [变更制品](docs/changes/README.md)：使用 `npm run change:new -- WQT-003 short-topic` 创建下一项变更；`npm run check:artifacts` 执行与 PR 相同的结构检查。
+
+## HTML 课件协作
+
+Emma 与 Codex 请先阅读[课件接入说明](docs/development/emma-courseware-integration.md)和[基线验证记录](docs/changes/WQT-014-emma-handoff/change.md)。本分支是协作快照，SDK 尚未实现，不代表生产部署版本。

@@ -1,0 +1,40 @@
+{
+  "mode": "built-in image_gen",
+  "source": "公司三折页，经用户 2026-10-14 确认为真实业务事实",
+  "network_failures": 5,
+  "prompts": [
+    {
+      "id": "bg-landscape",
+      "prompt": "Use the attached company tri-fold brochure ONLY as visual reference, not an edit target. Create ONE finished high-resolution landscape 16:9 background asset for the same brand, WQT / AI5000天, no typography, no logos, no people, no robot, no badge. Closely match the brochure's right and center panels: layered cobalt blue / deep indigo technological space, luminous flowing dotted ribbons sweeping across lower third, dimensional translucent blue spheres and fine concentric orbital arcs concentrated on right edge, precise tiny star points and subtle circuit constellations. Rich carefully controlled detail, tangible light and depth, luminous blue but not neon purple, small warm gold glints matching original gold lettering. Left upper 55% is a calm deep-blue continuous tonal area for Chinese headline and copy, not a flat empty black rectangle. Full bleed polished commercial brand texture, real usable image, absolutely no sheet of thumbnails, no text or watermark. Preserve recognizable original visual grammar; do not invent an abstract brand concept.",
+      "reference_image": "company-brochure-1.png"
+    },
+    {
+      "id": "bg-portrait",
+      "prompt": "The attached WQT company tri-fold brochure is the visual reference, not an edit target. Generate ONE separate portrait 2:3 full-bleed high-resolution background for activity posters in the SAME brand style. Deep cobalt / indigo blue technological environment with layered curved light paths, dotted luminous blue ribbons sweeping at the bottom and curling upward along the right edge, a few translucent glowing blue spheres, a subtle circular orbit in upper right, tiny gold sparks. Keep upper and middle-left 60% quieter and darker for existing badge and Chinese text to be composed later. Rich tangible depth and detailed light, professionally polished, not a simple flat gradient or a few lines. No words, no lettering, no numbers, no logos, no people, no robot, no character, no charts pretending data. One unified image, no montage. Retain original brochure's distinctive blue orbital field and gold accent balance.",
+      "reference_image": "company-brochure-1.png"
+    },
+    {
+      "id": "bg-light",
+      "prompt": "Create ONE finished high-resolution landscape 16:9 pale-blue and white background asset for the WQT / AI5000天 brand research report. Established visual grammar to match precisely: cobalt blue technological orbit arcs, dimensional translucent glass-blue spheres, fine flowing dotted blue light ribbons, tiny warm gold sparks, subtle digital constellations. Compose all detailed ornaments mainly on the right third and lower-right. Upper-left 65 percent is nearly white with a very subtle ice-blue atmosphere for dark Chinese titles, not a flat gray page. Delicate carefully layered dimensional light and fine texture, friendly sophisticated technology-for-children visual identity. Blue #354AAD and electric blue #337CFF, gold #DEB657 in tiny accents only. NO text, letters, numbers, logos, badges, people, robots, charts or thumbnail montage. One unified full-bleed usable brand background.",
+      "reference_image": null,
+      "reference_method": "将原图已观察的视觉语法明确描述"
+    },
+    {
+      "id": "ornament-orbit",
+      "prompt": "Generate ONE reusable transparent-background decorative brand asset for WQT / AI5000天: a sculptural luminous blue orbital flourish, three translucent cobalt glass spheres at different scales, fine concentric luminous arcs, and one gently curling dotted light ribbon across the bottom. Clear dimensional blue reflections and very fine precisely polished details; tiny warm gold sparks. Cobalt #354AAD, luminous electric blue #337CFF, small gold #DEB657 glints. Composition contained within frame with generous transparent margin, intended to overlay corners of posters and website sections. True transparent background, no square colored backdrop, no solid floor or ground shadow, no text, lettering, logo, character, robot, badge or montage. One coherent flowing ornament, carefully rendered depth rather than simple vector lines.",
+      "reference_image": null,
+      "reference_method": "将原图已观察的视觉语法明确描述"
+    },
+    {
+      "id": "ornament-gold",
+      "prompt": "Generate ONE reusable transparent-background warm gold decorative flourish based closely on the gold handwritten advocacy lettering and little hand-drawn heart/spark marks in the attached WQT brochure. Do NOT generate text. A coherent corner accent with a confident hand-drawn sweeping underline, one small open heart, and two tiny four-point star sparks, rendered as premium textured warm gold ink with subtle metallic glints. Uneven brush pressure, warm expressive human touch, designed to complement cobalt blue technology imagery. Everything contained within frame with transparent margin. True transparent background, no background card, no logo, no letters, no wording, no symbols besides the described heart and stars. Not a generic 3D badge, not a flat few thin computer lines.",
+      "reference_image": "company-brochure-1.png"
+    },
+    {
+      "id": "scene-companion",
+      "prompt": "Create ONE polished transparent foreground brand illustration for WQT / AI5000天. Two cheerful East Asian elementary-school children, one boy in a pale blue T-shirt and tan shorts and one girl in a white T-shirt and pale blue trousers, moving forward together with a friendly rounded white-and-blue companion robot. Match the established robot design: large rounded white head, dark blue face display with cyan smiling curved eyes and small smile, round blue ear discs, white polished body, blue joints and glowing cyan heart on chest. Children rendered as refined illustrative 3D figures, not a real customer photograph. Warm expressions, natural purposeful poses, anatomically correct hands and feet, complete full bodies inside frame with generous transparent margin. A balanced compact group of exactly three figures. Premium carefully finished blue-and-white materials, child agency and technology companionship. Actual transparent background. No words, lettering, slogans, logos, badges, backdrop, solid floor or rectangular shadow. Do not add other characters.",
+      "reference_image": null,
+      "reference_method": "以原始倡导图中的人物关系、配色及机器人特征描述；新插画，不作为真实客户照片"
+    }
+  ]
+}

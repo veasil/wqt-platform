@@ -8,8 +8,11 @@ import bcrypt from "bcryptjs";
 import { dbRun, dbGet, dbAll } from "../../db.js";
 import { authMiddleware } from "../../middleware/auth.js";
 import { resolveValidity } from "../../account.js";
+import { accountModelEnabled } from "../accounts/model.js";
+import { registerAccountProfileRoutes } from "../accounts/profile.routes.js";
 
 export function registerProfileRoutes(app, { ossClient = null } = {}) {
+  if (accountModelEnabled()) return registerAccountProfileRoutes(app);
   app.get("/api/me", authMiddleware, async (req, res) => {
     try {
       const user = await dbGet(

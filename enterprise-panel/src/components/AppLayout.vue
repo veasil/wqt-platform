@@ -44,13 +44,18 @@
         <el-button :icon="isCollapsed ? Expand : Fold" text @click="isCollapsed = !isCollapsed" />
         <div style="display:flex; align-items:center; gap:12px">
           <span style="font-size:14px; color:#666">{{ auth.user?.guardianName || auth.user?.phone }}</span>
+          <el-button v-if="auth.user?.accountId" text @click="openAccounts">切换账号</el-button>
           <el-button text type="danger" @click="handleLogout">退出</el-button>
         </div>
       </el-header>
       <el-main style="background:#f5f7fa; padding:20px">
-        <router-view />
+        <router-view :key="auth.user?.accountId || 'legacy'" />
       </el-main>
     </el-container>
+    <el-dialog v-model="accountDialog" title="选择城市级管理账号" width="min(480px,94vw)">
+      <el-select v-model="selectedAccount" placeholder="请选择账号" style="width:100%"><el-option v-for="account in accounts" :key="account.id" :value="account.id" :label="`${account.organization_name} · ${account.name}`" /></el-select>
+      <template #footer><el-button @click="accountDialog=false">取消</el-button><el-button type="primary" :disabled="!selectedAccount" :loading="switching" @click="confirmAccount">确认账号</el-button></template>
+    </el-dialog>
   </el-container>
 </template>
 
@@ -58,15 +63,27 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import {ElMessage} from 'element-plus'
 import { Expand, Fold } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const isCollapsed = ref(false)
+const accountDialog=ref(false),accounts=ref([]),selectedAccount=ref(null),switching=ref(false)
+async function openAccounts() {
+  try {accounts.value=await auth.availableAccounts();selectedAccount.value=null;accountDialog.value=true}
+  catch(e) {ElMessage.error(e.response?.data?.error || e.message)}
+}
+async function confirmAccount() {
+  switching.value=true
+  try {await auth.switchAccount(selectedAccount.value);accountDialog.value=false;await router.push({name:'Dashboard'})}
+  catch(e) {ElMessage.error(e.response?.data?.error || e.message)}
+  finally {switching.value=false}
+}
 
-function handleLogout() {
-  auth.logout()
-  router.push({ name: 'Login' })
+async function handleLogout() {
+  try {await auth.endSession()} catch { /* Local credentials are cleared even when the service is unavailable. */ }
+  await router.push({ name: 'Login' })
 }
 </script>

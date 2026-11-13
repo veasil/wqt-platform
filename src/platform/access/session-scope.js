@@ -1,6 +1,8 @@
 import { dbGet } from "../../db.js";
+import { accountActor } from "../accounts/context.js";
 
 export async function currentActor(userId, get = dbGet, { lock = false } = {}) {
+  if (typeof userId === "object") return accountActor(userId, get, { lock });
   return get(
     `SELECT id, role, enterprise_id, valid_until FROM users WHERE id = ?${lock ? " FOR UPDATE" : ""}`,
     [userId],
@@ -12,6 +14,12 @@ export function sessionScope(actor, alias = "s", { managed = false } = {}) {
   if (!/^[a-z][a-z0-9_]*$/i.test(alias))
     throw new Error("Invalid session alias");
   if (!actor) return { sql: "FALSE", params: [] };
+  if (actor.identity_id != null) {
+    if (managed && actor.role === "enterprise" && actor.plan === "city") {
+      return { sql: `(${alias}.account_id IS NOT NULL AND (${alias}.account_id = ? OR ${alias}.organization_id = ?))`, params: [actor.id, actor.organization_id] };
+    }
+    return { sql: `${alias}.account_id = ?`, params: [actor.id] };
+  }
   const organizationId = actor.enterprise_id || null;
   const own = `${alias}.user_id = ? AND (${alias}.ownership_kind = 'personal' OR (${alias}.ownership_kind = 'organization' AND ${alias}.organization_id = ?))`;
   if (managed && actor.role === "enterprise" && organizationId) {
