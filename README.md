@@ -79,3 +79,7 @@ node --env-file=.env server.js
 ## HTML 课件协作
 
 Emma 与 Codex 请先阅读[课件接入说明](docs/development/emma-courseware-integration.md)和[基线验证记录](docs/changes/WQT-014-emma-handoff/change.md)。本分支是协作快照，SDK 尚未实现，不代表生产部署版本。旧/新版和已知发布差异见[基线地图](docs/development/platform-baseline-map.md)，具体字段与状态规则见[接口契约](docs/development/player-api-contract.md)。
+
+## 独立课件实现更新（WQT-015）
+
+团队应用授权、轻量 JS 客户端和独立课件示例已在 `codex/team-courseware-integration` 实现并通过隔离技术验证。新接入从[快速开始](docs/development/team-courseware-quickstart.md)进入；前面的 WQT-014 说明保留为原基线快照，不代表本分支尚未实现授权。未部署生产。

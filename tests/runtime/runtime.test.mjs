@@ -132,6 +132,13 @@ test("routing preserves the baseline order plus explicitly approved tenant guard
     assert.ok(index >= 0);
     expected.splice(index, 0, {name: 'compression', regexp});
   }
+  // WQT-015: scoped application tokens are checked globally before any route.
+  expected.splice(expected.findIndex(layer => layer.name === 'corsMiddleware') + 1, 0, {
+    name: 'teamTokenBoundary', regexp: String(/^\/?(?=\/|$)/i)
+  });
+  expected.splice(expected.findIndex(layer => layer.name === 'serveStatic' && layer.regexp === String(/^\/?(?=\/|$)/i)), 0, {
+    name: '<anonymous>', regexp: String(/^\/connect\/?(?=\/|$)/i)
+  });
   function signature(stack) {
     return stack.map((layer) =>
       layer.route

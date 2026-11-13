@@ -21,6 +21,8 @@ jobs:
         with:
           python-version: '3.12'
       - run: npm ci
+      - name: Install Node Playwright Chromium for integration tests
+        run: npx playwright install --with-deps chromium
       - name: Build frontends with production deployment environment
         run: npm run build
         env:
@@ -43,3 +45,6 @@ jobs:
         run: python tests/browser/verify-aliyun-captcha.py
       - name: Fixed renewal and operation recovery rules
         run: node --test tests/admin-entitlements.test.mjs
+
+      - name: Team application browser client contracts
+        run: node --test tests/frontend/team-client*.test.mjs tests/frontend/team-login-return.test.mjs

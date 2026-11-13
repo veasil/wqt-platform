@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { createClient } from 'redis';
 import { config } from '../config.js';
 import { domainError } from '../game/activities/link.js';
@@ -86,4 +86,27 @@ export async function revokeIdentitySession(identityId,jti=null) {
 export async function revokeIdentityCredentialSession(identityId,credentialVersion) {
   return guarded(c=>c.eval("local value=redis.call('GET',KEYS[1]); if not value then return 0 end; local record=cjson.decode(value); if record.credentialVersion==tonumber(ARGV[1]) then return redis.call('DEL',KEYS[1]) end; return 0",
     {keys:[key(identityId)],arguments:[String(credentialVersion)]}));
+}
+
+// Reuse the identity Redis lifecycle and namespace. Never store the raw code.
+function teamCodeKey(code) {
+  return `${key('team-app')}:code:${createHash('sha256').update(code).digest('hex')}`;
+}
+export async function storeTeamAuthorizationCode(code, record) {
+  const ttl = Math.min(60_000, record.expiresAt - Date.now());
+  if (ttl <= 0) throw domainError(401, '原登录已到期');
+  const stored = await guarded(c => c.set(teamCodeKey(code), JSON.stringify(record), { PX: ttl, NX: true }));
+  if (stored !== 'OK') throw domainError(503, '授权暂不可用，请重试');
+}
+export async function consumeTeamAuthorizationCode(code, clientId, redirectUri, challenge) {
+  // Validate the binding and consume in one command. A bad verifier cannot burn the code.
+  const serialized = await guarded(c => c.eval(`
+    local value=redis.call('GET',KEYS[1]); if not value then return nil end;
+    local record=cjson.decode(value);
+    if record.clientId~=ARGV[1] or record.redirectUri~=ARGV[2] or record.challenge~=ARGV[3] then return nil end;
+    redis.call('DEL',KEYS[1]); return value;
+  `, { keys: [teamCodeKey(code)], arguments: [clientId, redirectUri, challenge] }));
+  if (!serialized) return null;
+  const record = JSON.parse(serialized);
+  return record.expiresAt > Date.now() ? record : null;
 }

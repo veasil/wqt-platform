@@ -73,3 +73,7 @@ revision 解决两端同时修改的问题，requestId 解决同一请求重复�
 不包含跨站 SSO、任意课程积分模型、第三方通用授权、公开 SDK。旧 `/api/game/event` 和 `/api/game/finish` 不用于新版场次。
 
 正式接入前最低验证：真实 HTTP 登录/选账号、开局/动作/结束/刷新恢复、同 ID 重试、两端旧 revision 冲突、撤权拒绝、跨组织拒绝。建议测试在专用 PG/Redis 上运行，并覆盖课件实际浏览器；当前基线完整回归尚未全部完成，详见 [WQT-014](../changes/WQT-014-emma-handoff/change.md)。
+
+## WQT-015 增量
+
+本分支已实现受限团队应用凭证，调用方式见[快速开始](team-courseware-quickstart.md)；旧正文继续描述 b469661 快照。本分支已迁入跨阶段选牌修复，卡牌阶段不再限制当前游戏阶段，卡组发布快照仍是边界。
